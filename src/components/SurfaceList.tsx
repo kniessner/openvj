@@ -1,6 +1,15 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
+import {
+  Mesh,
+  OrthographicCamera,
+  PlaneGeometry,
+  Scene,
+  ShaderMaterial,
+  WebGLRenderer,
+} from 'three'
 import { useSurfaceStore, Surface, Corner } from '../stores/surfaceStore'
 import { assetTextureManager } from '../lib/assetTextureManager'
+import { ProjectedMaterial } from '../shaders/ProjectedMaterial'
 
 // ─── 3D Layout Presets ───────────────────────────────────────────────────────
 
@@ -352,10 +361,8 @@ function SurfaceShaderEditor({ surface, onClose }: SurfaceShaderEditorProps) {
       const canvas = previewRef.current
       if (!canvas) return
       try {
-        const THREE = await import('three')
-        const { ProjectedMaterial } = await import('../shaders/ProjectedMaterial')
         if (!rendererRef.current) {
-          rendererRef.current = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true })
+          rendererRef.current = new WebGLRenderer({ canvas, antialias: false, alpha: true })
           rendererRef.current.setSize(canvas.offsetWidth || 256, canvas.offsetHeight || 144, false)
         }
         const renderer = rendererRef.current
@@ -366,10 +373,10 @@ function SurfaceShaderEditor({ surface, onClose }: SurfaceShaderEditorProps) {
         })
         mat.setCorners([{ x: -1, y: 1 }, { x: 1, y: 1 }, { x: 1, y: -1 }, { x: -1, y: -1 }])
         mat.tick(performance.now() / 1000)
-        const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
-        const scene = new THREE.Scene()
-        const geo = new THREE.PlaneGeometry(1, 1, 4, 4)
-        scene.add(new THREE.Mesh(geo, mat))
+        const cam = new OrthographicCamera(-1, 1, 1, -1, 0, 1)
+        const scene = new Scene()
+        const geo = new PlaneGeometry(1, 1, 4, 4)
+        scene.add(new Mesh(geo, mat))
         renderer.render(scene, cam)
         geo.dispose()
         mat.dispose()
@@ -438,10 +445,9 @@ function SurfaceShaderEditor({ surface, onClose }: SurfaceShaderEditorProps) {
     setCompiling(true)
     setError(null)
     try {
-      const THREE = await import('three')
       const canvas = document.createElement('canvas')
       canvas.width = 64; canvas.height = 64
-      const renderer = new THREE.WebGLRenderer({ canvas })
+      const renderer = new WebGLRenderer({ canvas })
       const testFrag = `precision highp float;
 uniform float uTime;
 uniform float uAudioLow;
@@ -453,7 +459,7 @@ void main() {
   vec4 c = vec4(0.5, 0.5, 0.5, 1.0);
   gl_FragColor = applyFX(c, vec2(0.5, 0.5));
 }`
-      const mat = new THREE.ShaderMaterial({
+      const mat = new ShaderMaterial({
         vertexShader: `void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }`,
         fragmentShader: testFrag,
         uniforms: {
@@ -464,10 +470,10 @@ void main() {
           uBeat: { value: 0 },
         },
       })
-      const scene = new THREE.Scene()
-      const geo   = new THREE.PlaneGeometry(2, 2)
-      const cam   = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
-      scene.add(new THREE.Mesh(geo, mat))
+      const scene = new Scene()
+      const geo   = new PlaneGeometry(2, 2)
+      const cam   = new OrthographicCamera(-1, 1, 1, -1, 0, 1)
+      scene.add(new Mesh(geo, mat))
       renderer.render(scene, cam)
       renderer.dispose(); geo.dispose(); mat.dispose()
       updateSurfaceProps(surface.id, { customShader: code.trim() || null })

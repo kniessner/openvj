@@ -1,4 +1,13 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
+import {
+  Mesh,
+  OrthographicCamera,
+  PlaneGeometry,
+  Scene,
+  ShaderMaterial,
+  Vector2,
+  WebGLRenderer,
+} from 'three'
 import { useAssetStore, Asset, AssetType, DEFAULT_SHADER, BUILTIN_ASSETS } from '../stores/assetStore'
 import { useSurfaceStore } from '../stores/surfaceStore'
 import { assetTextureManager } from '../lib/assetTextureManager'
@@ -172,16 +181,16 @@ export function ShaderEditor({ asset, onClose }: ShaderEditorProps) {
     try {
       const canvas = document.createElement('canvas')
       canvas.width = 64; canvas.height = 64
-      const renderer = new (await import('three')).WebGLRenderer({ canvas })
-      const mat = new (await import('three')).ShaderMaterial({
+      const renderer = new WebGLRenderer({ canvas })
+      const mat = new ShaderMaterial({
         vertexShader: `void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }`,
         fragmentShader: `precision highp float;\nuniform float uTime;\nuniform vec2 uResolution;\n${code}`,
-        uniforms: { uTime: { value: 0 }, uResolution: { value: new (await import('three')).Vector2(64, 64) } },
+        uniforms: { uTime: { value: 0 }, uResolution: { value: new Vector2(64, 64) } },
       })
-      const scene = new (await import('three')).Scene()
-      const geo   = new (await import('three')).PlaneGeometry(2, 2)
-      const cam   = new (await import('three')).OrthographicCamera(-1, 1, 1, -1, 0, 1)
-      scene.add(new (await import('three')).Mesh(geo, mat))
+      const scene = new Scene()
+      const geo   = new PlaneGeometry(2, 2)
+      const cam   = new OrthographicCamera(-1, 1, 1, -1, 0, 1)
+      scene.add(new Mesh(geo, mat))
       renderer.render(scene, cam)
       renderer.dispose(); geo.dispose(); mat.dispose()
       updateAsset(asset.id, { shaderCode: code })
