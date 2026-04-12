@@ -166,3 +166,4 @@ Desktop.ini
 notes.txt
 TODO.local.md
 *.local.*
+*.sync-conflict-*
