@@ -6,12 +6,16 @@
 import { useSurfaceStore } from '../stores/surfaceStore'
 import type { Surface } from '../stores/surfaceStore'
 
-const LERP_PROPS: (keyof Surface)[] = [
+type NumericSurfaceProp = {
+  [K in keyof Surface]: Surface[K] extends number ? K : never
+}[keyof Surface]
+
+const LERP_PROPS = [
   'opacity', 'brightness', 'contrast',
   'hue', 'saturation',
   'zoom', 'rotation',
   'warpAmp', 'warpFreq', 'chromaAb', 'pixelate', 'vignette',
-]
+] as const satisfies readonly NumericSurfaceProp[]
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t
@@ -72,9 +76,9 @@ export function transitionToScene(targetSurfaces: Surface[], durationMs: number)
 
       // Lerp numeric FX props
       for (const prop of LERP_PROPS) {
-        const a = from[prop]  as number
-        const b = target[prop] as number
-        ;(result as Record<string, unknown>)[prop] = lerp(a, b, eased)
+        const a = from[prop]
+        const b = target[prop]
+        result[prop] = lerp(a, b, eased)
       }
 
       return result
