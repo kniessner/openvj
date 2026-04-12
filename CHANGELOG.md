@@ -9,41 +9,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### ✨ Added
 
-**Core Features:**
+**Projection Mapping:**
 - Quad-based projection mapping with corner pin distortion
 - Real-time UV coordinate transformation for surface warping
+- Drag-and-drop corner manipulation in 3D space
+- Multiple independent surfaces per project
+- Surface visibility toggle and lock
+
+**Video Playback:**
 - Drag-and-drop video loading (MP4, WebM support)
 - Video playback controls (play, pause, stop, seek)
-- Timeline scrubbing interface
-- Multiple independent surfaces per project
+- Variable playback rate (0.5×, 1×, 2×, 4×)
+- Loop mode and volume control
+- Timeline scrubbing interface with waveform visualization
+- Video audio mute/unmute
+
+**Audio-Reactive Features:**
+- **Real-time microphone input** with frequency analysis
+- Three-band frequency analysis: Low (20-300Hz), Mid (300-4kHz), High (4k-20kHz)
+- Beat detection with adjustable threshold
+- BPM tap tempo calculator
+- Visual level meters with live feedback
+- Audio uniforms for shaders: `uAudioLow`, `uAudioMid`, `uAudioHigh`, `uBeat`
+- Adjustable sensitivity, smoothing, and beat threshold settings
+
+**MIDI Controller Support:**
+- **Full MIDI CC mapping** via WebMIDI API
+- MIDI learn mode for easy parameter binding
+- Control 11 surface parameters: opacity, brightness, contrast, hue, saturation, zoom, warp, chromatic aberration, pixelate, vignette, rotation
+- Default 8-knob mapping with persistent storage
+- Multi-channel MIDI support
+- Works with any standard MIDI controller
 
 **Shader System:**
 - Custom GLSL shader support per surface
 - AI-assisted shader generation (Anthropic Claude integration)
 - Live shader editor with syntax highlighting
 - Built-in shader library:
-  - Noise patterns
-  - Kaleidoscope effects
-  - Pixelation
-  - Color grading
-  - Edge detection
+  - Plasma Wave
+  - Tunnel
+  - Kaleidoscope
+  - Lava Lamp
+  - Voronoi
+  - Spiral
+  - Hexagonal Tiles
+  - Grid Distortion
   - And more...
+- Audio-reactive uniforms built into shader system
 
-**Generative Graphics:**
-- Uji Generator for animated kaleidoscope patterns
-- Multiple blend modes
-- Color and brightness adjustments
-- Parameter controls
+**Media Sources:**
+- Video files (MP4, WebM) via drag-and-drop
+- Image files (JPG, PNG, GIF)
+- Webcam input
+- Screen capture
+- Custom GLSL shaders
+- Uji Generator (generative kaleidoscope patterns)
+
+**Scene Management:**
+- Save and load complete scenes
+- Scene thumbnails for quick preview
+- Smooth scene transitions
+- Multiple scene presets with persistent storage
+
+**Project Management:**
+- Save/load project configurations
+- Export/import projects as JSON
+- LocalStorage persistence
+- Full state restoration on reload
 
 **User Interface:**
 - Clean, dark-themed interface
-- Media browser with drag-and-drop
-- Surface list with visibility/lock controls
-- Real-time parameter adjustments
-- Save/load project configurations
-- Export/import mapping presets
-- Fullscreen mode
-- Keyboard shortcuts
+- Media browser with type filters (all, video, image, shader, uji, webcam, screen)
+- Surface list with thumbnails and quick controls
+- Real-time parameter sliders for all effects
+- Fullscreen mode (F key)
+- Comprehensive keyboard shortcuts
+- Built-in help modal with shortcut reference (? key)
+- Transport controls with audio waveform visualization
+- MIDI and audio control panels
+- Settings panels for audio and MIDI
 
 **Technical:**
 - React 18 with TypeScript

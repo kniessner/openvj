@@ -2,7 +2,7 @@
 
 > **Real-time visual performance and projection mapping in your browser**
 
-OpenVJ is an open-source VJ (Video Jockey) and projection mapping system built with modern web technologies. Transform any surface into a dynamic canvas for live visuals, performances, and installations—no expensive hardware or proprietary software required.
+OpenVJ is an open-source VJ (Video Jockey) and projection mapping system built with modern web technologies. Transform any surface into a dynamic canvas for live visuals, performances, and installations—with **full MIDI control**, **real-time audio reactivity**, and **AI-powered shader generation**. No expensive hardware or proprietary software required.
 
 ![Beta Release](https://img.shields.io/badge/status-beta-yellow)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
@@ -34,43 +34,83 @@ OpenVJ is an open-source VJ (Video Jockey) and projection mapping system built w
 - Drag-and-drop corner manipulation in 3D space
 - Multiple independent surfaces per project
 - Real-time UV coordinate transformation
+- Surface visibility toggle and lock
 
 ✅ **Video Playback**
 - Support for MP4, WebM, and browser-native formats
 - Drag-and-drop video loading
 - Play/pause/stop/seek controls
-- Timeline scrubbing
+- Variable playback rate (0.5×, 1×, 2×, 4×)
+- Loop mode and volume control
+- Timeline scrubbing with waveform visualization
+
+✅ **Audio-Reactive**
+- **Real-time microphone input** with frequency analysis
+- Three-band EQ: Low (20-300Hz), Mid (300-4kHz), High (4k-20kHz)
+- Beat detection with adjustable threshold
+- BPM tap tempo
+- Visual level meters
+- Shaders can respond to `uAudioLow`, `uAudioMid`, `uAudioHigh`, `uBeat` uniforms
+- Adjustable sensitivity and smoothing
+
+✅ **MIDI Controller Support**
+- **Full MIDI CC mapping** via WebMIDI API
+- MIDI learn mode for easy binding
+- Control surface parameters: opacity, brightness, contrast, hue, saturation, zoom, warp, chromatic aberration, pixelate, vignette, rotation
+- Default 8-knob mapping with persistent storage
+- Works with any MIDI controller (tested with generic USB controllers)
 
 ✅ **Shader System**
 - Custom GLSL shaders per surface
 - AI-assisted shader generation (bring your own Anthropic API key)
 - Live shader editing with syntax highlighting
-- Built-in shader library (noise, kaleidoscope, pixelate, etc.)
+- Built-in shader library: Plasma Wave, Tunnel, Kaleidoscope, Lava Lamp, Voronoi, and more
+- Audio-reactive uniforms built-in
+
+✅ **Media Sources**
+- Video files (MP4, WebM)
+- Image files (JPG, PNG, GIF)
+- Webcam input
+- Screen capture
+- Custom GLSL shaders
+- Uji generators (generative kaleidoscope patterns)
+
+✅ **Scene Management**
+- Save and load complete scenes
+- Scene thumbnails for quick preview
+- Smooth scene transitions
+- Multiple scene presets
+
+✅ **Project Management**
+- Save/load project configurations
+- Export/import as JSON
+- LocalStorage persistence
+- Full state restoration
 
 ✅ **User Interface**
 - Clean, dark-themed interface
-- Real-time parameter adjustments
-- Save/load project configurations
-- Export/import mapping presets
-- Keyboard shortcuts for performance
-
-✅ **Generative Graphics**
-- Uji Generator for animated kaleidoscope patterns
-- Multiple blend modes and color adjustments
-- Parameter automation ready
+- Media browser with type filters
+- Surface list with thumbnails
+- Real-time parameter sliders
+- Fullscreen mode
+- Comprehensive keyboard shortcuts
+- Built-in help modal with shortcut reference
+- Transport controls with audio waveform
 
 ### 🚧 Roadmap
 
 See [TODO.md](./TODO.md) for the complete development roadmap.
 
-**Coming Soon:**
-- 🎹 MIDI controller support
-- 🎵 Audio-reactive effects
-- 🔄 Effect chains and post-processing
-- 🖼️ Image sequence playback
-- 📹 Webcam/screenshare input
-- 🌐 Multi-output support
-- 🎭 Scene transitions and crossfades
+**Coming in Future Releases:**
+- 🔄 Effect chains and post-processing pipeline
+- 🖼️ Image sequence playback (frame-by-frame)
+- 🌐 Multi-output support (multiple displays/projectors)
+- 💡 DMX lighting control integration
+- 🔁 Network sync (multiple instances)
+- ☁️ Cloud project storage and collaboration
+- 🎬 Advanced timeline with keyframes
+- 🐍 Python scripting API
+- 📱 Mobile/tablet control interface
 
 ---
 
@@ -215,13 +255,14 @@ Special thanks to:
 
 ## ⚠️ Beta Notice
 
-OpenVJ is currently in **beta**. While core features are stable, you may encounter bugs or incomplete features. Please report issues on GitHub!
+OpenVJ is currently in **beta**. Core features are working and stable, but you may encounter edge cases or browser compatibility issues. Please report issues on GitHub!
 
 **Known Limitations:**
-- No MIDI support yet (coming in Phase 2)
-- Audio reactivity not implemented
+- Webcam/screen capture needs browser permissions (may vary by browser)
 - Single display output only (multi-output in development)
-- Limited shader presets (we're building the library!)
+- Effect chains not yet implemented
+- No frame-by-frame image sequence playback yet
+- Works best in Chrome/Edge (WebMIDI and WebGL support)
 
 ---
 
