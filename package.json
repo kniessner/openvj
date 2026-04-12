@@ -1,8 +1,31 @@
 {
   "name": "openvj",
-  "private": true,
+  "private": false,
   "version": "0.1.0",
+  "description": "Real-time visual performance and projection mapping in your browser",
   "type": "module",
+  "author": "OpenVJ Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kniessner/openvj.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kniessner/openvj/issues"
+  },
+  "homepage": "https://github.com/kniessner/openvj#readme",
+  "keywords": [
+    "vj",
+    "projection-mapping",
+    "threejs",
+    "webgl",
+    "video",
+    "live-visuals",
+    "react",
+    "generative-art",
+    "shaders",
+    "glsl"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

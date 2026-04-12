@@ -142,3 +142,27 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Local development
+.DS_Store
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Personal notes and local config
+notes.txt
+TODO.local.md
+*.local.*

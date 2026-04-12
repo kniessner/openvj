@@ -11,8 +11,9 @@ Get OpenVJ running in 5 minutes!
 ## Installation
 
 ```bash
-# Navigate to project
-cd "$CLAUDE_VAULT/30-projects-active/2026-openvj"
+# Clone the repository
+git clone https://github.com/kniessner/openvj.git
+cd openvj
 
 # Install dependencies (first time only)
 npm install
