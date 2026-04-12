@@ -908,9 +908,7 @@ function OutputWindow() {
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  // Output window mode — render nothing but the canvas
-  const isOutputMode = new URLSearchParams(window.location.search).get('mode') === 'output'
-  if (isOutputMode) return <OutputWindow />
+  // All hooks must be called unconditionally before any early returns
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mediaOpen, setMediaOpen] = useState(true)
   const [surfaceOpen, setSurfaceOpen] = useState(true)
@@ -1071,6 +1069,10 @@ export default function App() {
     // Let MediaBrowser handle the actual file processing via its own drop handler
     // This overlay just shows the visual feedback
   }
+
+  // Output window mode — render nothing but the canvas (checked after all hooks)
+  const isOutputMode = new URLSearchParams(window.location.search).get('mode') === 'output'
+  if (isOutputMode) return <OutputWindow />
 
   return (
     <div

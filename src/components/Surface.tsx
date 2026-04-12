@@ -142,7 +142,6 @@ export function SurfaceMesh({ surface }: SurfaceMeshProps) {
     const mat = new ProjectedMaterial({ transparent: true, side: THREE.DoubleSide, customShader })
     mat.setTexture(canvasTexture)
     return mat
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasTexture, customShader])
 
   // Load and apply asset texture whenever assetId or shader code changes
@@ -154,14 +153,11 @@ export function SurfaceMesh({ surface }: SurfaceMeshProps) {
     assetTextureManager.load(asset).then((tex) => {
       material.setTexture(tex ?? canvasTexture)
     })
-  // shader code changes require a reload too
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [surface.assetId, asset?.shaderCode, material, canvasTexture])
+  }, [asset, surface.assetId, material, canvasTexture])
 
   // Apply blend mode when it changes
   useEffect(() => {
     material.setBlendMode(surface.blendMode ?? 'normal')
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [surface.blendMode, material])
 
   // Sync surface props to material every frame
