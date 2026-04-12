@@ -95,7 +95,9 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
   const [name, setName]     = useState(asset?.name ?? 'Uji Art')
   const [params, setParams] = useState<UjiParams>(() => {
     const base = { ...DEFAULT_UJI_PARAMS, ...(asset?.ujiParams ?? {}) }
-    return { ...base, audioMod: { ...DEFAULT_AUDIO_MOD, ...(asset?.ujiParams?.audioMod ?? {}) } }
+    const audioMod = asset?.ujiParams?.audioMod
+    const mergedAudioMod = typeof audioMod === 'object' ? { ...DEFAULT_AUDIO_MOD, ...audioMod } : DEFAULT_AUDIO_MOD
+    return { ...base, audioMod: mergedAudioMod }
   })
   const [seed, setSeed]       = useState(() => Math.floor(Math.random() * 1e9))
   const [rendering, setRendering] = useState(false)
@@ -110,8 +112,12 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
 
   const setParam  = <K extends keyof UjiParams>(k: K, v: UjiParams[K]) =>
     setParams((p) => ({ ...p, [k]: v }))
-  const setAudio  = <K extends keyof UjiAudioMod>(k: K, v: UjiAudioMod[K]) =>
-    setParams((p) => ({ ...p, audioMod: { ...(p.audioMod ?? DEFAULT_AUDIO_MOD), [k]: v } }))
+  const setAudio  = <K extends keyof UjiAudioMod>(k: K, v: UjiAudioMod[K]) => {
+    setParams((p) => {
+      const currentAudioMod = typeof p.audioMod === 'object' ? p.audioMod : DEFAULT_AUDIO_MOD
+      return { ...p, audioMod: { ...currentAudioMod, [k]: v } }
+    })
+  }
 
   // Sync paramsRef on every render so RAF closures always see fresh values
   useEffect(() => { paramsRef.current = params }, [params])
@@ -181,7 +187,7 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
     onClose()
   }
 
-  const am = params.audioMod ?? DEFAULT_AUDIO_MOD
+  const am = typeof params.audioMod === 'object' ? params.audioMod : DEFAULT_AUDIO_MOD
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
@@ -217,22 +223,30 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
         {/* ── Preset bar ── */}
         <div className="flex items-center gap-1 px-5 py-2 border-b border-gray-800 bg-gray-900/50 flex-shrink-0 overflow-x-auto">
           <span className="text-xs text-gray-600 mr-1 flex-shrink-0">Static:</span>
-          {STATIC_PRESETS.map((key) => (
-            <button key={key}
-              onClick={() => setParams({ ...UJI_PRESETS[key], audioMod: { ...DEFAULT_AUDIO_MOD, ...(UJI_PRESETS[key].audioMod ?? {}) } })}
-              className="px-2.5 py-1 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-500 text-gray-400 rounded-lg transition-colors cursor-pointer flex-shrink-0">
-              {key}
-            </button>
-          ))}
+          {STATIC_PRESETS.map((key) => {
+            const preset = UJI_PRESETS[key]
+            const presetAudioMod = typeof preset.audioMod === 'object' ? preset.audioMod : DEFAULT_AUDIO_MOD
+            return (
+              <button key={key}
+                onClick={() => setParams({ ...preset, audioMod: { ...DEFAULT_AUDIO_MOD, ...presetAudioMod } })}
+                className="px-2.5 py-1 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-500 text-gray-400 rounded-lg transition-colors cursor-pointer flex-shrink-0">
+                {key}
+              </button>
+            )
+          })}
           <div className="w-px h-4 bg-gray-700 mx-1 flex-shrink-0" />
           <span className="text-xs text-orange-600 mr-1 flex-shrink-0">Audio:</span>
-          {AUDIO_PRESETS.map((key) => (
-            <button key={key}
-              onClick={() => setParams({ ...UJI_PRESETS[key], audioMod: { ...DEFAULT_AUDIO_MOD, ...(UJI_PRESETS[key].audioMod ?? {}) } })}
-              className="px-2.5 py-1 text-xs bg-orange-900/20 hover:bg-orange-900/30 border border-orange-700/40 hover:border-orange-600/60 text-orange-400 rounded-lg transition-colors cursor-pointer flex-shrink-0">
-              {key}
-            </button>
-          ))}
+          {AUDIO_PRESETS.map((key) => {
+            const preset = UJI_PRESETS[key]
+            const presetAudioMod = typeof preset.audioMod === 'object' ? preset.audioMod : DEFAULT_AUDIO_MOD
+            return (
+              <button key={key}
+                onClick={() => setParams({ ...preset, audioMod: { ...DEFAULT_AUDIO_MOD, ...presetAudioMod } })}
+                className="px-2.5 py-1 text-xs bg-orange-900/20 hover:bg-orange-900/30 border border-orange-700/40 hover:border-orange-600/60 text-orange-400 rounded-lg transition-colors cursor-pointer flex-shrink-0">
+                {key}
+              </button>
+            )
+          })}
         </div>
 
         {/* ── Body ── */}
