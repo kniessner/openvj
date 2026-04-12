@@ -1,0 +1,21 @@
+# Build outputs
+dist
+build
+.vite
+
+# Dependencies
+node_modules
+
+# Config files
+*.config.js
+*.config.ts
+
+# Test coverage
+coverage
+
+# Cache
+.cache
+.turbo
+
+# Logs
+*.log
