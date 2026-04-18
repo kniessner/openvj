@@ -6,9 +6,13 @@ import { SurfaceList } from './components/SurfaceList'
 import { MediaBrowser, ShaderEditor } from './components/MediaBrowser'
 import { HelpModal } from './components/HelpModal'
 import { UjiGenerator } from './components/UjiGenerator'
+import { GlobalPostProcess } from './components/GlobalPostProcess'
+import { P5JsPanel } from './components/P5JsPanel'
 import { useSurfaceStore } from './stores/surfaceStore'
 import { useAssetStore, Asset, BUILTIN_ASSETS } from './stores/assetStore'
 import { useSceneStore, type Scene } from './stores/sceneStore'
+import { useOutputStore } from './stores/outputStore'
+import { useP5JsStore } from './stores/p5jsStore'
 import { assetTextureManager } from './lib/assetTextureManager'
 import { audioEngine } from './lib/audioEngine'
 import { midiEngine } from './lib/midiEngine'
@@ -63,6 +67,7 @@ function Scene({ presentMode = false }: { presentMode?: boolean }) {
         />
       )}
       <OrbitControls makeDefault enableDamping dampingFactor={0.06} enabled={!isDraggingCorner && !presentMode} />
+      <GlobalPostProcess />
     </>
   )
 }
@@ -947,6 +952,87 @@ function ScenesPanel({ collapsed, onToggle, onSaveScene }: ScenesPanelProps) {
   )
 }
 
+// ─── Global Output FX Panel ───────────────────────────────────────────────────
+
+function OutputSlider({ label, value, min, max, step, displayValue, onChange }: {
+  label: string; value: number; min: number; max: number; step: number
+  displayValue: string; onChange: (v: number) => void
+}) {
+  const pct = ((value - min) / (max - min)) * 100
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between items-center">
+        <span className="text-xs text-gray-400">{label}</span>
+        <span className="text-xs font-mono text-teal-300 tabular-nums w-12 text-right">{displayValue}</span>
+      </div>
+      <input
+        type="range" min={min} max={max} step={step} value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-full cursor-pointer"
+        style={{ background: `linear-gradient(to right, #14b8a6 ${pct}%, #374151 ${pct}%)` }}
+      />
+    </div>
+  )
+}
+
+interface GlobalOutputPanelProps {
+  collapsed: boolean
+  onToggle: () => void
+}
+
+function GlobalOutputPanel({ collapsed, onToggle }: GlobalOutputPanelProps) {
+  const { brightness, contrast, saturation, hue, vignette, updateOutputProps, resetOutput } = useOutputStore()
+  const isModified = brightness !== 0 || contrast !== 0 || saturation !== 1 || hue !== 0 || vignette !== 0
+
+  return (
+    <div className="border-t border-gray-700/60 flex-shrink-0">
+      <button
+        onClick={onToggle}
+        className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider hover:bg-gray-800/60 transition-colors cursor-pointer"
+      >
+        <span className="flex items-center gap-1.5">
+          Global Output
+          {isModified && <span className="w-1.5 h-1.5 bg-teal-400 rounded-full" />}
+        </span>
+        <div className="flex items-center gap-1.5">
+          {isModified && (
+            <button
+              onClick={(e) => { e.stopPropagation(); resetOutput() }}
+              className="text-gray-600 hover:text-teal-400 transition-colors cursor-pointer px-1 text-[10px] uppercase"
+              title="Reset all output FX"
+            >
+              reset
+            </button>
+          )}
+          <svg className={`w-3 h-3 text-gray-600 transition-transform ${collapsed ? '-rotate-90' : ''}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+      {!collapsed && (
+        <div className="px-3 pb-3 space-y-3">
+          <OutputSlider label="Brightness" value={brightness} min={-1} max={1} step={0.01}
+            displayValue={brightness === 0 ? '0' : (brightness > 0 ? `+${brightness.toFixed(2)}` : brightness.toFixed(2))}
+            onChange={(v) => updateOutputProps({ brightness: v })} />
+          <OutputSlider label="Contrast" value={contrast} min={-1} max={1} step={0.01}
+            displayValue={contrast === 0 ? '0' : (contrast > 0 ? `+${contrast.toFixed(2)}` : contrast.toFixed(2))}
+            onChange={(v) => updateOutputProps({ contrast: v })} />
+          <OutputSlider label="Saturation" value={saturation} min={0} max={2} step={0.01}
+            displayValue={saturation.toFixed(2)}
+            onChange={(v) => updateOutputProps({ saturation: v })} />
+          <OutputSlider label="Hue Shift" value={hue} min={-180} max={180} step={1}
+            displayValue={hue === 0 ? '0°' : `${hue > 0 ? '+' : ''}${hue}°`}
+            onChange={(v) => updateOutputProps({ hue: v })} />
+          <OutputSlider label="Vignette" value={vignette} min={0} max={1} step={0.01}
+            displayValue={vignette === 0 ? 'Off' : vignette.toFixed(2)}
+            onChange={(v) => updateOutputProps({ vignette: v })} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Snap grid control ────────────────────────────────────────────────────────
 
 function SnapControls() {
@@ -978,7 +1064,32 @@ function SnapControls() {
 
 // ─── Output window ────────────────────────────────────────────────────────────
 // Rendered when ?mode=output — clean canvas with no UI chrome.
-// State stays in sync via localStorage storage events from the main window.
+// ═══ p5.js Status Component ═══════════════════════════════════════════════════
+
+function P5JsStatus() {
+  const { layers } = useP5JsStore()
+  const activeLayers = layers.filter(l => l.isPlaying)
+  
+  if (layers.length === 0) return null
+  
+  return (
+    <div className="px-3 py-1 border-t border-gray-700/60 flex items-center justify-between text-xs text-gray-700">
+      <span className="flex items-center gap-1.5">
+        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+            d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+        </svg>
+        p5.js
+      </span>
+      <span>
+        <span className="text-green-500">{activeLayers.length}</span>
+        <span className="text-gray-600">/{layers.length} active</span>
+      </span>
+    </div>
+  )
+}
+
+// ═══ Output-only window (projector / secondary display) ════════════════════════
 
 function OutputWindow() {
   // Sync surfaces + assets from main window via storage events
@@ -992,6 +1103,16 @@ function OutputWindow() {
         if (e.key === 'openvj-assets' && e.newValue) {
           const { state } = JSON.parse(e.newValue)
           if (state?.assets) useAssetStore.setState({ assets: state.assets })
+        }
+        if (e.key === 'openvj-output' && e.newValue) {
+          const { state } = JSON.parse(e.newValue)
+          if (state) useOutputStore.setState({
+            brightness: state.brightness ?? 0,
+            contrast:   state.contrast   ?? 0,
+            saturation: state.saturation ?? 1,
+            hue:        state.hue        ?? 0,
+            vignette:   state.vignette   ?? 0,
+          })
         }
       } catch { /* ignore malformed */ }
     }
@@ -1033,9 +1154,11 @@ export default function App() {
   const [mediaOpen, setMediaOpen] = useState(true)
   const [surfaceOpen, setSurfaceOpen] = useState(true)
   const [sceneOpen, setSceneOpen] = useState(true)
+  const [globalFxOpen, setGlobalFxOpen] = useState(false)
   const [editingShader, setEditingShader] = useState<Asset | null>(null)
   const [editingUji, setEditingUji] = useState<Asset | null>(null)
   const [creatingUji, setCreatingUji] = useState(false)
+  const [p5jsOpen, setP5jsOpen] = useState(true)
   const [isDragOver, setIsDragOver] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [presenting, setPresenting] = useState(false)
@@ -1380,11 +1503,26 @@ export default function App() {
               />
             </div>
 
+            {/* Global Output FX */}
+            <GlobalOutputPanel
+              collapsed={!globalFxOpen}
+              onToggle={() => setGlobalFxOpen((o) => !o)}
+            />
+
+            {/* p5.js Creative Coding */}
+            <P5JsPanel
+              collapsed={!p5jsOpen}
+              onToggle={() => setP5jsOpen((o) => !o)}
+            />
+
             {/* Status bar */}
             <div className="px-3 py-1.5 border-t border-gray-700/60 flex items-center justify-between text-xs text-gray-700 flex-shrink-0">
               <span>{surfaces.length} surface{surfaces.length !== 1 ? 's' : ''}</span>
               <span>{assets.length} asset{assets.length !== 1 ? 's' : ''}</span>
             </div>
+            
+            {/* p5.js Status */}
+            <P5JsStatus />
           </aside>
         )}
 

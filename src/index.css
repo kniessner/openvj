@@ -13,7 +13,9 @@ body {
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+ 
 }
+
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {

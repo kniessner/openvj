@@ -7,6 +7,7 @@ import { ProjectedMaterial } from '../shaders/ProjectedMaterial'
 import { useAssetStore, BUILTIN_ASSETS } from '../stores/assetStore'
 import { assetTextureManager } from '../lib/assetTextureManager'
 import { audioEngine } from '../lib/audioEngine'
+import { useP5JsStore } from '../stores/p5jsStore'
 
 // ─── Polygon geometry ─────────────────────────────────────────────────────────
 // Fan-triangulation from centroid. UVs are either per-corner stored values or
@@ -173,6 +174,11 @@ export function SurfaceMesh({ surface, presentMode = false }: SurfaceMeshProps) 
   const assets = useAssetStore((s) => s.assets)
   const asset = (assets.find((a) => a.id === surface.assetId) ?? BUILTIN_ASSETS.find((a) => a.id === surface.assetId)) ?? null
 
+  // p5.js layer support - get layer if assetId matches a p5.js layer
+  const p5Layers = useP5JsStore((s) => s.layers)
+  const p5Sources = useP5JsStore((s) => s.sources)
+  const p5Layer = p5Layers.find(l => l.id === surface.assetId)
+
   // Rebuild polygon geometry only when corners change
   const cornersKey = surface.corners.map(c => `${c.x.toFixed(4)},${c.y.toFixed(4)}`).join('|')
   const geometry = useMemo(
@@ -218,11 +224,20 @@ export function SurfaceMesh({ surface, presentMode = false }: SurfaceMeshProps) 
   }, [canvasTexture, customShader])
 
   useEffect(() => {
+    // p5.js layer takes priority
+    if (p5Layer) {
+      const source = p5Sources.get(p5Layer.id)
+      if (source) {
+        material.setTexture(source.getTexture())
+        return
+      }
+    }
+    // Regular asset
     if (!asset) { material.setTexture(canvasTexture); return }
     assetTextureManager.load(asset).then((tex) => {
       material.setTexture(tex ?? canvasTexture)
     })
-  }, [asset, surface.assetId, material, canvasTexture])
+  }, [asset, p5Layer, p5Sources, surface.assetId, material, canvasTexture])
 
   useEffect(() => {
     material.setBlendMode(surface.blendMode ?? 'normal')
@@ -252,6 +267,10 @@ export function SurfaceMesh({ surface, presentMode = false }: SurfaceMeshProps) 
     material.setMaskShape(surface.maskShape ?? 'none')
     material.setMaskSoftness(surface.maskSoftness ?? 0.02)
     material.setMaskInvert(surface.maskInvert ?? false)
+    material.setEdgeBlendLeft(surface.edgeBlendLeft ?? 0)
+    material.setEdgeBlendRight(surface.edgeBlendRight ?? 0)
+    material.setEdgeBlendTop(surface.edgeBlendTop ?? 0)
+    material.setEdgeBlendBottom(surface.edgeBlendBottom ?? 0)
     material.setAudioLow(audioEngine.low ?? 0)
     material.setAudioMid(audioEngine.mid ?? 0)
     material.setAudioHigh(audioEngine.high ?? 0)

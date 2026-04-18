@@ -62,6 +62,12 @@ function buildFragmentShader(customShader: string | null): string {
   uniform float uMaskSoftness; // feather amount 0-0.2
   uniform float uMaskInvert;   // 0 or 1
 
+  // Edge blending (0=off, 1=full fade at that edge)
+  uniform float uEdgeBlendLeft;
+  uniform float uEdgeBlendRight;
+  uniform float uEdgeBlendTop;
+  uniform float uEdgeBlendBottom;
+
   varying vec2 vUv;
 
   float getMaskAlpha(vec2 uv) {
@@ -186,6 +192,12 @@ function buildFragmentShader(customShader: string | null): string {
     // Layer mask
     color.a *= getMaskAlpha(vUv);
 
+    // Edge blending — smooth gamma-corrected gradient at each edge
+    if (uEdgeBlendLeft   > 0.0) color.a *= smoothstep(0.0, uEdgeBlendLeft,   vUv.x);
+    if (uEdgeBlendRight  > 0.0) color.a *= smoothstep(0.0, uEdgeBlendRight,  1.0 - vUv.x);
+    if (uEdgeBlendBottom > 0.0) color.a *= smoothstep(0.0, uEdgeBlendBottom, vUv.y);
+    if (uEdgeBlendTop    > 0.0) color.a *= smoothstep(0.0, uEdgeBlendTop,    1.0 - vUv.y);
+
     // Tint + opacity
     color.rgb *= uTint;
     color.a   *= uOpacity;
@@ -259,6 +271,11 @@ export class ProjectedMaterial extends THREE.ShaderMaterial {
         uMaskShape:       { value: 0 },
         uMaskSoftness:    { value: 0.02 },
         uMaskInvert:      { value: 0 },
+        // Edge blending
+        uEdgeBlendLeft:   { value: 0 },
+        uEdgeBlendRight:  { value: 0 },
+        uEdgeBlendTop:    { value: 0 },
+        uEdgeBlendBottom: { value: 0 },
       },
       transparent,
       side,
@@ -321,6 +338,11 @@ export class ProjectedMaterial extends THREE.ShaderMaterial {
   }
   setMaskSoftness(v: number)  { this.uniforms.uMaskSoftness.value = v }
   setMaskInvert(on: boolean)  { this.uniforms.uMaskInvert.value   = on ? 1 : 0 }
+  // Edge blend setters
+  setEdgeBlendLeft(v: number)   { this.uniforms.uEdgeBlendLeft.value   = v }
+  setEdgeBlendRight(v: number)  { this.uniforms.uEdgeBlendRight.value  = v }
+  setEdgeBlendTop(v: number)    { this.uniforms.uEdgeBlendTop.value    = v }
+  setEdgeBlendBottom(v: number) { this.uniforms.uEdgeBlendBottom.value = v }
 }
 
 export default ProjectedMaterial

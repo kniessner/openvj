@@ -40,6 +40,7 @@
     "@react-three/drei": "^9.92.0",
     "@react-three/fiber": "^8.15.0",
     "osc-js": "^2.4.0",
+    "p5": "^1.9.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "three": "^0.160.0",
@@ -48,6 +49,7 @@
   },
   "devDependencies": {
     "@testing-library/react": "^14.0.0",
+    "@types/p5": "^1.7.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@types/three": "^0.160.0",

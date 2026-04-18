@@ -4,7 +4,7 @@ import type { UjiParams } from '../lib/ujiRenderer'
 
 export type { UjiParams }
 
-export type AssetType = 'video' | 'image' | 'shader' | 'webcam' | 'screencapture' | 'uji'
+export type AssetType = 'video' | 'image' | 'shader' | 'webcam' | 'screencapture' | 'uji' | 'p5js'
 
 export interface Asset {
   id: string
@@ -18,6 +18,9 @@ export interface Asset {
   isAnimated?: boolean
   // uji: generator params (persisted)
   ujiParams?: UjiParams
+  // p5js: sketch code and config (persisted)
+  p5jsCode?: string
+  p5jsMode?: '2D' | 'WEBGL'
 }
 
 export const DEFAULT_SHADER = `// Uniforms available:

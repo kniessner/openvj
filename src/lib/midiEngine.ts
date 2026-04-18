@@ -1,86 +1,77 @@
 /**
- * Web MIDI API engine — singleton.
- * Connects to all MIDI inputs, routes CC and Note-On messages to listeners.
+ * MIDI engine for MIDI controller integration via WebMIDI API
  */
-
-type CCListener  = (channel: number, cc: number, value: number) => void
-type NoteListener = (channel: number, note: number, velocity: number) => void
-
 class MidiEngine {
-  private _access: MIDIAccess | null = null
-  private _ccListeners:   Set<CCListener>   = new Set()
-  private _noteListeners: Set<NoteListener> = new Set()
+  private inputs: MIDIInput[] = []
+  private listeners: Array<(channel: number, cc: number, value: number) => void> = []
+  private noteListeners: Array<(channel: number, note: number, velocity: number) => void> = []
+  inputNames: string[] = []
 
-  /** Snapshot of all received CC values: key = `ch:cc`, value = 0–1 */
-  readonly ccValues: Map<string, number> = new Map()
+  async start(): Promise<string[]> {
+    return this.init()
+  }
 
-  active = false
+  stop(): void {
+    this.inputs.forEach((input) => {
+      input.onmidimessage = null
+    })
+    this.inputs = []
+    this.inputNames = []
+    this.listeners = []
+  }
 
-  async start(): Promise<void> {
-    if (this.active) return
-    const access = await navigator.requestMIDIAccess({ sysex: false })
-    this._access = access
-    this.active = true
+  async init(): Promise<string[]> {
+    try {
+      const access = await navigator.requestMIDIAccess()
+      this.inputs = Array.from(access.inputs.values())
+      
+      this.inputs.forEach((input) => {
+        input.onmidimessage = (event: Event) => {
+          const midiEvent = event as MIDIMessageEvent
+          if (!midiEvent.data || midiEvent.data.length < 3) return
+          
+          const [status, cc, value] = midiEvent.data
+          const channel = status & 0x0f
+          const command = status & 0xf0
+          
+          // CC message (0xB0)
+          if (command === 0xb0) {
+            const normalizedValue = value / 127
+            this.listeners.forEach((cb) => cb(channel, cc, normalizedValue))
+          }
+          // Note On message (0x90)
+          if (command === 0x90 && value > 0) {
+            this.noteListeners.forEach((cb) => cb(channel, cc, value))
+          }
+        }
+      })
 
-    const attach = (input: MIDIInput) => {
-      input.onmidimessage = (e: MIDIMessageEvent) => this._handle(e)
+      this.inputNames = this.inputs.map((input) => input.name || 'Unknown')
+      return this.inputNames
+    } catch (error) {
+      console.error('MIDI access failed:', error)
+      throw error
     }
+  }
 
-    access.inputs.forEach(attach)
-    access.onstatechange = (e: MIDIConnectionEvent) => {
-      if (e.port && e.port.type === 'input' && e.port.state === 'connected') {
-        attach(e.port as MIDIInput)
-      }
+  onCC(callback: (channel: number, cc: number, value: number) => void): () => void {
+    this.listeners.push(callback)
+    return () => {
+      const index = this.listeners.indexOf(callback)
+      if (index > -1) this.listeners.splice(index, 1)
     }
   }
 
-  stop() {
-    this._access?.inputs.forEach((i) => { i.onmidimessage = null })
-    this._access = null
-    this.active = false
-    this.ccValues.clear()
-  }
-
-  private _handle(e: MIDIMessageEvent) {
-    if (!e.data) return
-    const [status, data1, data2] = Array.from(e.data)
-    const type    = status & 0xf0
-    const channel = status & 0x0f
-
-    if (type === 0xb0) {
-      // Control Change
-      const val = data2 / 127
-      this.ccValues.set(`${channel}:${data1}`, val)
-      this._ccListeners.forEach((fn) => fn(channel, data1, val))
-    } else if (type === 0x90 && data2 > 0) {
-      // Note On (velocity > 0)
-      this._noteListeners.forEach((fn) => fn(channel, data1, data2 / 127))
+  onNote(callback: (channel: number, note: number, velocity: number) => void): () => void {
+    this.noteListeners.push(callback)
+    return () => {
+      const index = this.noteListeners.indexOf(callback)
+      if (index > -1) this.noteListeners.splice(index, 1)
     }
   }
 
-  /** Subscribe to every CC message. Returns unsubscribe fn. */
-  onCC(fn: CCListener): () => void {
-    this._ccListeners.add(fn)
-    return () => this._ccListeners.delete(fn)
-  }
-
-  /** Subscribe to every Note-On message. Returns unsubscribe fn. */
-  onNote(fn: NoteListener): () => void {
-    this._noteListeners.add(fn)
-    return () => this._noteListeners.delete(fn)
-  }
-
-  /** Get the last value (0–1) for a CC, defaulting to 0 if never seen. */
-  get(channel: number, cc: number): number {
-    return this.ccValues.get(`${channel}:${cc}`) ?? 0
-  }
-
-  /** List all connected input port names. */
-  get inputNames(): string[] {
-    if (!this._access) return []
-    const names: string[] = []
-    this._access.inputs.forEach((i) => names.push(i.name ?? 'Unknown'))
-    return names
+  getInputNames(): string[] {
+    return this.inputs.map((input) => input.name || 'Unknown')
   }
 }
 

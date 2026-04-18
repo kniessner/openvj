@@ -50,14 +50,27 @@ export interface MidiBinding {
   target: MidiTarget
 }
 
+/** Map a MIDI note-on to a scene recall */
+export interface NoteBinding {
+  channel: number
+  note: number
+  sceneId: string
+}
+
 interface MidiState {
   bindings: MidiBinding[]
   /** Which target is waiting for a CC "learn" message */
   learning: MidiTarget | null
+  noteBindings: NoteBinding[]
+  /** Scene ID waiting for a note "learn" message */
+  learningNote: string | null
 
   addBinding: (binding: MidiBinding) => void
   removeBinding: (target: MidiTarget) => void
   setLearning: (target: MidiTarget | null) => void
+  addNoteBinding: (binding: NoteBinding) => void
+  removeNoteBinding: (sceneId: string) => void
+  setLearningNote: (sceneId: string | null) => void
   clearAll: () => void
 }
 
@@ -78,10 +91,11 @@ export const useMidiStore = create<MidiState>()(
     (set) => ({
       bindings: DEFAULT_BINDINGS,
       learning: null,
+      noteBindings: [],
+      learningNote: null,
 
       addBinding: (binding) =>
         set((s) => ({
-          // Replace existing binding for the same target, keep others
           bindings: [
             ...s.bindings.filter((b) => b.target !== binding.target),
             binding,
@@ -96,7 +110,23 @@ export const useMidiStore = create<MidiState>()(
 
       setLearning: (target) => set({ learning: target }),
 
-      clearAll: () => set({ bindings: [], learning: null }),
+      addNoteBinding: (binding) =>
+        set((s) => ({
+          noteBindings: [
+            ...s.noteBindings.filter((b) => b.sceneId !== binding.sceneId),
+            binding,
+          ],
+          learningNote: null,
+        })),
+
+      removeNoteBinding: (sceneId) =>
+        set((s) => ({
+          noteBindings: s.noteBindings.filter((b) => b.sceneId !== sceneId),
+        })),
+
+      setLearningNote: (sceneId) => set({ learningNote: sceneId }),
+
+      clearAll: () => set({ bindings: [], learning: null, noteBindings: [], learningNote: null }),
     }),
     { name: 'openvj-midi' }
   )

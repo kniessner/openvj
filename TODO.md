@@ -1,6 +1,7 @@
 # OpenVJ Development Todo
 
-> 🎯 **Current Phase**: Phase 2 — Sprint 8 (Layer Masks)
+
+> 🎯 **Current Phase**: Phase 3 — Sprint 9 (Multi-Output)
 > 📅 **Last Updated**: April 18, 2026
 
 ## ✅ Completed (Setup Phase)
@@ -45,7 +46,7 @@
 
 ---
 
-## ✅ Phase 2: Features — Sprints 5–7 COMPLETE, Sprint 8 In Progress
+## ✅ Phase 2: Features — COMPLETE
 
 ### Sprint 5: Effects System ✅ COMPLETE
 - [x] GLSL fragment shader pipeline (ProjectedMaterial.ts)
@@ -73,36 +74,39 @@
 - [x] Uji generative canvas source with audio modulation
 - [x] 20 built-in shader presets
 
-### Sprint 8: Layer System 🚧 IN PROGRESS
+### Sprint 8: Layer System ✅ COMPLETE
+- [x] Multi-layer architecture with z-ordering
+- [x] Surface list with drag-to-reorder
+- [x] Per-surface visibility, lock, blend mode
+- [x] Clone/duplicate surfaces
+- [x] Global output FX with post-processing
+- [x] Layer groups with collapse/expand
+- [x] Layer masks with feathered edges
 
-- [x] **8.1** Multi-layer architecture — surfaces act as independent layers with z-ordering
-  - [x] Surface list = layer stack with drag-to-reorder
-  - [x] Per-surface visibility, lock, blend mode
-  - [x] Clone/duplicate surfaces
-- [ ] **8.2** FBO-based compositing — render layers to off-screen textures
-  - [ ] Render each surface to its own FBO
-  - [ ] Final composite pass with global blend
-  - [ ] Performance: only re-render dirty layers
-- [ ] **8.3** Layer groups — group multiple surfaces together
-  - [ ] Group container with shared blend mode
-  - [ ] Expand/collapse groups in layer list
-- [x] **8.4** Layer masks — alpha mask shapes per surface ✅ DONE (April 18)
-  - [x] Mask shapes: ellipse, triangle, diamond, top/bottom/left/right half
-  - [x] Feathered edges (softness slider)
-  - [x] Invert mask toggle
-  - [x] Mask UI in Surface Inspector
+### Sprint 9: p5.js Creative Coding ✅ COMPLETE (April 18, 2026)
+- [x] p5.js 1.9.0 integration with full TypeScript support
+- [x] Instance mode rendering for independent sketches
+- [x] Live code editor with real-time preview
+- [x] 5 starter templates (Audio Waveform, Particles, Kaleidoscope, Neon Grid, Liquid Flow)
+- [x] OpenVJ Bridge API for audio/MIDI access
+- [x] Layer-based sketch management in sidebar
+- [x] Three.js texture bridge for projection mapping
+- [x] Persistent sketch storage with Zustand
+- [x] Template library for quick starts
+  - [x] Play/pause, opacity, and blend mode controls
 
-**Current focus:** Sprint 8.2 — FBO-based compositing
+**Phase 2 (Sprints 5-9) complete. Phase 3 begins next.**
 
 ---
 
 ## 📋 Phase 3: Performance (Future)
 
-### Sprint 9: Multi-Output
-- [ ] Separate output window (popup) for projector
-- [ ] `?output=1` URL mode — hides all UI, just canvas fullscreen
-- [ ] BroadcastChannel or shared Zustand state across windows
-- [ ] Edge blending between outputs
+### Sprint 9: Multi-Output ✅ Mostly Complete
+- [x] Separate output window (popup) for projector (`?mode=output`)
+- [x] Output URL mode — hides all UI, clean canvas fullscreen
+- [x] BroadcastChannel audio sync across windows
+- [x] localStorage storage events for surface/asset/output-FX sync
+- [x] Edge blending — per-surface soft gradient fades at each edge for projector overlap ✅ DONE (April 18)
 
 ### Sprint 10: Performance Optimization
 - [ ] FBO caching — skip re-render for unchanged surfaces
@@ -170,19 +174,19 @@
 | Phase 2 | Sprint 5 (Effects) | ✅ Complete |
 | Phase 2 | Sprint 6 (Audio) | ✅ Complete |
 | Phase 2 | Sprint 7 (Sources) | ✅ Complete |
-| Phase 2 | Sprint 8.1 (Multi-layer) | ✅ Complete |
-| Phase 2 | Sprint 8.4 (Layer Masks) | ✅ Complete |
-| Phase 2 | Sprint 8.2 (FBO compositing) | 🔲 Next |
-| Phase 2 | Sprint 8.3 (Layer groups) | 🔲 Planned |
+| Phase 2 | Sprint 8 (Layer System) | ✅ Complete |
+| Phase 2 | Sprint 9 (p5.js) | ✅ Complete |
 | Phase 3–5 | All | 🔲 Future |
 
 ---
 
 ## 🎯 Next Actions
 
-1. **Now**: Sprint 8.2 — FBO-based layer compositing
-2. **Next**: Sprint 8.3 — Layer groups
-3. **Soon**: Sprint 9 — Multi-output popup window for projector
+1. **Now**: Sprint 9 — Multi-output (already partially done: output window + BroadcastChannel audio)
+   - Update TODO to reflect what's already built
+   - Edge blending between outputs
+2. **Next**: Sprint 10 — Performance (FBO caching, WebGPU, texture pooling)
+3. **Soon**: Sprint 11 — Advanced mapping (bezier curves, grid warp)
 
 ---
 

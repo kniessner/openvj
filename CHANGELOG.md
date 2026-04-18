@@ -116,26 +116,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-04-18 (Creative Coding Release)
+
+### ✨ Added
+
+**p5.js Creative Coding Integration:**
+- Full p5.js support for generative art and creative coding
+- Live code editor with real-time preview and error handling
+- Instance mode rendering for independent sketch execution
+- 5 built-in starter templates:
+  - Audio Waveform - Real-time frequency visualization
+  - Particle System - Audio-reactive particle effects
+  - Kaleidoscope - Mirror symmetry patterns
+  - Neon Grid - Cyberpunk-style grid animations
+  - Liquid Flow - Perlin noise fluid simulations
+- Three.js texture bridge for projection mapping integration
+- Layer-based sketch management with opacity and blend modes
+- Play/pause controls per sketch
+- Template library for quick starts
+
+**OpenVJ Bridge API:**
+- `openvj.audio.getLow()` - Bass frequencies (0-255)
+- `openvj.audio.getMid()` - Mid frequencies (0-255)
+- `openvj.audio.getHigh()` - High frequencies (0-255)
+- `openvj.audio.getBeat()` - Beat trigger (0-1)
+- `openvj.audio.getBPM()` - Detected tempo
+- `openvj.midi.getCC(n)` - MIDI controller values (0-1)
+
+**UI Enhancements:**
+- New p5.js panel in sidebar for layer management
+- Template selector for instant sketch creation
+- Inline code editor with syntax awareness
+- Status bar showing active sketch count
+- Collapsible panel section
+
+**Technical:**
+- p5.js 1.9.0 dependency
+- @types/p5 for TypeScript support
+- P5JsEngine for texture management
+- Zustand store for layer state
+- Persistent sketch storage
+
+### 🔧 Improved
+
+- Enhanced MIDI engine with note-on event support
+- Better audio engine integration across all visual sources
+- Surface rendering pipeline now supports dynamic textures
+
+### 📚 Documentation
+
+- Updated README with p5.js features
+- New creative coding examples
+- Performance tips for live visuals
+
+---
+
 ## [Unreleased]
 
 ### 🚧 Planned Features
 
 See [TODO.md](./TODO.md) for the complete development roadmap.
 
-**Phase 2 (Upcoming):**
-- MIDI controller support
-- Audio-reactive effects
-- Effect chains and post-processing
+**Coming Next:**
+- Effect chains and post-processing pipeline
 - Image sequence playback
-- Webcam/screenshare input
 - Multi-output support
-- Scene transitions
-
-**Phase 3 (Future):**
 - DMX lighting control
 - Network sync (multiple instances)
 - Cloud project storage
-- Collaboration features
 - Advanced timeline with keyframes
 - Python scripting integration
 

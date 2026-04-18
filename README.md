@@ -8,6 +8,7 @@ OpenVJ is an open-source VJ (Video Jockey) and projection mapping system built w
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 ![React](https://img.shields.io/badge/react-18.2-61dafb)
 ![Three.js](https://img.shields.io/badge/three.js-0.160-black)
+![p5.js](https://img.shields.io/badge/p5.js-1.9-orange)
 
 ---
 
@@ -67,13 +68,22 @@ OpenVJ is an open-source VJ (Video Jockey) and projection mapping system built w
 - Built-in shader library: Plasma Wave, Tunnel, Kaleidoscope, Lava Lamp, Voronoi, and more
 - Audio-reactive uniforms built-in
 
-✅ **Media Sources**
+✅ **Creative Coding & Generative Art:**
+- **p5.js integration** for live generative art coding
+- 5 built-in templates: Audio Waveform, Particles, Kaleidoscope, Neon Grid, Liquid Flow
+- Live code editor with real-time preview
+- OpenVJ Bridge API for audio/MIDI access in sketches
+- Layer-based sketch management with blend modes
+- Instance mode rendering for independent execution
+
+✅ **Media Sources:**
 - Video files (MP4, WebM)
 - Image files (JPG, PNG, GIF)
 - Webcam input
 - Screen capture
 - Custom GLSL shaders
 - Uji generators (generative kaleidoscope patterns)
+- p5.js sketches (code-based generative art)
 
 ✅ **Scene Management**
 - Save and load complete scenes
@@ -144,7 +154,9 @@ Visit **http://localhost:5173** and you'll see the OpenVJ interface with a demo 
 2. **Create a Surface** – Click "+ Add Surface" in the Surface List
 3. **Adjust Mapping** – Drag the corner handles to warp the projection
 4. **Try a Shader** – Select a surface and apply a built-in shader effect
-5. **Go Fullscreen** – Press `F` or click the fullscreen button to fill your screen/projector
+5. **Create Generative Art** – Open the p5.js panel, click "New Sketch", and code live
+6. **Enable Audio Reactivity** – Click the 🎤 icon to add audio-responsive visuals
+7. **Go Fullscreen** – Press `F` or click the fullscreen button to fill your screen/projector
 
 📖 **Detailed Guide:** See [QUICKSTART.md](./QUICKSTART.md)
 

@@ -469,6 +469,7 @@ const TYPE_COLORS: Record<AssetType, string> = {
   webcam:        'text-yellow-400',
   screencapture: 'text-orange-400',
   uji:           'text-pink-400',
+  p5js:          'text-cyan-400',
 }
 
 interface AssetCardProps {
@@ -549,13 +550,14 @@ function AssetCard({ asset, assignedSurfaceNames, isActiveSurface, isBuiltin, on
 
 // ─── Filter tab ───────────────────────────────────────────────────────────────
 
-const ALL_TYPES: (AssetType | 'all')[] = ['all', 'video', 'image', 'shader', 'uji', 'webcam', 'screencapture']
+const ALL_TYPES: (AssetType | 'all')[] = ['all', 'video', 'image', 'shader', 'uji', 'p5js', 'webcam', 'screencapture']
 const TYPE_LABELS: Record<AssetType | 'all', string> = {
   all: 'All',
   video: 'Video',
   image: 'Image',
   shader: 'Shader',
   uji: 'Uji',
+  p5js: 'p5.js',
   webcam: 'Cam',
   screencapture: 'Screen',
 }

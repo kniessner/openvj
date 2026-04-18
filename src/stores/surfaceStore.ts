@@ -11,6 +11,12 @@ export interface Corner {
 export type BlendMode = 'normal' | 'add' | 'screen' | 'multiply'
 export type MaskShape = 'none' | 'ellipse' | 'triangle' | 'diamond' | 'top' | 'bottom' | 'left' | 'right'
 
+export interface Group {
+  id: string
+  name: string
+  collapsed: boolean
+}
+
 export interface Surface {
   id: string
   name: string
@@ -48,10 +54,18 @@ export interface Surface {
   maskShape: MaskShape         // default 'none'
   maskSoftness: number         // 0 to 0.2, feather amount, default 0.02
   maskInvert: boolean          // default false
+  // Edge blending (0 = off, 1 = full fade)
+  edgeBlendLeft:   number  // default 0
+  edgeBlendRight:  number  // default 0
+  edgeBlendTop:    number  // default 0
+  edgeBlendBottom: number  // default 0
+  // Group membership
+  groupId: string | null       // default null
 }
 
 interface SurfaceState {
   surfaces: Surface[]
+  groups: Group[]
   activeSurfaceId: string | null
   /** True while any corner handle is being dragged — use to disable OrbitControls */
   isDraggingCorner: boolean
@@ -68,6 +82,12 @@ interface SurfaceState {
   setIsPresenting: (v: boolean) => void
   addSurface: () => void
   removeSurface: (id: string) => void
+  addGroup: () => void
+  removeGroup: (id: string) => void
+  renameGroup: (id: string, name: string) => void
+  toggleGroupCollapsed: (id: string) => void
+  toggleGroupVisibility: (groupId: string) => void
+  setSurfaceGroup: (surfaceId: string, groupId: string | null) => void
   updateCorner: (surfaceId: string, cornerIndex: number, position: Corner) => void
   addCorner: (surfaceId: string, afterIndex: number) => void
   removeCorner: (surfaceId: string, index: number) => void
@@ -79,7 +99,7 @@ interface SurfaceState {
   renameSurface: (id: string, name: string) => void
   updateSurfaceProps: (
     id: string,
-    props: Partial<Pick<Surface, 'opacity' | 'brightness' | 'contrast' | 'blendMode' | 'hue' | 'saturation' | 'invert' | 'flipH' | 'flipV' | 'rotation' | 'zoom' | 'warpAmp' | 'warpFreq' | 'chromaAb' | 'pixelate' | 'vignette' | 'chromaKey' | 'chromaColor' | 'chromaThreshold' | 'chromaSoftness' | 'customShader' | 'maskShape' | 'maskSoftness' | 'maskInvert'>>
+    props: Partial<Pick<Surface, 'opacity' | 'brightness' | 'contrast' | 'blendMode' | 'hue' | 'saturation' | 'invert' | 'flipH' | 'flipV' | 'rotation' | 'zoom' | 'warpAmp' | 'warpFreq' | 'chromaAb' | 'pixelate' | 'vignette' | 'chromaKey' | 'chromaColor' | 'chromaThreshold' | 'chromaSoftness' | 'customShader' | 'maskShape' | 'maskSoftness' | 'maskInvert' | 'edgeBlendLeft' | 'edgeBlendRight' | 'edgeBlendTop' | 'edgeBlendBottom'>>
   ) => void
   assignAsset: (surfaceId: string, assetId: string | null) => void
   reorderSurface: (fromIndex: number, toIndex: number) => void
@@ -134,6 +154,11 @@ const defaultSurfaceProps = {
   maskShape: 'none' as MaskShape,
   maskSoftness: 0.02,
   maskInvert: false,
+  edgeBlendLeft:   0,
+  edgeBlendRight:  0,
+  edgeBlendTop:    0,
+  edgeBlendBottom: 0,
+  groupId: null,
 }
 
 export const useSurfaceStore = create<SurfaceState>()(
@@ -172,6 +197,7 @@ export const useSurfaceStore = create<SurfaceState>()(
           ...defaultSurfaceProps,
         },
       ],
+      groups: [],
       activeSurfaceId: null,
       isDraggingCorner: false,
       isPresenting: false,
@@ -238,6 +264,83 @@ export const useSurfaceStore = create<SurfaceState>()(
           activeSurfaceId:
             state.activeSurfaceId === id ? null : state.activeSurfaceId,
         }))
+      },
+
+      addGroup: () => {
+        const id = generateId()
+        set((state) => {
+          const nums = state.groups
+            .map((g) => parseInt(g.name.replace('Group ', '')))
+            .filter((n) => !isNaN(n))
+          const next = nums.length ? Math.max(...nums) + 1 : state.groups.length + 1
+          return { groups: [...state.groups, { id, name: `Group ${next}`, collapsed: false }] }
+        })
+      },
+
+      removeGroup: (id) => {
+        set((state) => ({
+          groups: state.groups.filter((g) => g.id !== id),
+          surfaces: state.surfaces.map((s) =>
+            s.groupId === id ? { ...s, groupId: null } : s
+          ),
+        }))
+      },
+
+      renameGroup: (id, name) => {
+        set((state) => ({
+          groups: state.groups.map((g) =>
+            g.id === id ? { ...g, name: name.trim() || g.name } : g
+          ),
+        }))
+      },
+
+      toggleGroupCollapsed: (id) => {
+        set((state) => ({
+          groups: state.groups.map((g) =>
+            g.id === id ? { ...g, collapsed: !g.collapsed } : g
+          ),
+        }))
+      },
+
+      toggleGroupVisibility: (groupId) => {
+        _pushHistory()
+        set((state) => {
+          const groupSurfaces = state.surfaces.filter((s) => s.groupId === groupId)
+          const allVisible = groupSurfaces.every((s) => s.visible)
+          return {
+            surfaces: state.surfaces.map((s) =>
+              s.groupId === groupId ? { ...s, visible: !allVisible } : s
+            ),
+          }
+        })
+      },
+
+      setSurfaceGroup: (surfaceId, groupId) => {
+        _pushHistory()
+        set((state) => {
+          const surface = state.surfaces.find((s) => s.id === surfaceId)
+          if (!surface) return {}
+          const updated = { ...surface, groupId }
+          const without = state.surfaces.filter((s) => s.id !== surfaceId)
+
+          if (groupId === null) {
+            return { surfaces: [...without, updated] }
+          }
+
+          // Insert after the last surface already in the target group
+          let insertIdx = -1
+          for (let i = 0; i < without.length; i++) {
+            if ((without[i].groupId ?? null) === groupId) insertIdx = i
+          }
+
+          const result = [...without]
+          if (insertIdx >= 0) {
+            result.splice(insertIdx + 1, 0, updated)
+          } else {
+            result.push(updated)
+          }
+          return { surfaces: result }
+        })
       },
 
       updateCorner: (surfaceId, cornerIndex, position) => {
@@ -346,6 +449,10 @@ export const useSurfaceStore = create<SurfaceState>()(
                   maskShape: defaultSurfaceProps.maskShape,
                   maskSoftness: defaultSurfaceProps.maskSoftness,
                   maskInvert: defaultSurfaceProps.maskInvert,
+                  edgeBlendLeft:   defaultSurfaceProps.edgeBlendLeft,
+                  edgeBlendRight:  defaultSurfaceProps.edgeBlendRight,
+                  edgeBlendTop:    defaultSurfaceProps.edgeBlendTop,
+                  edgeBlendBottom: defaultSurfaceProps.edgeBlendBottom,
                 }
               : surface
           ),
@@ -414,13 +521,21 @@ export const useSurfaceStore = create<SurfaceState>()(
 
       importConfig: (config) => {
         _pushHistory()
-        set({ surfaces: config })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        set({ surfaces: config.map((s) => ({ ...s, groupId: (s as any).groupId ?? null })) })
       },
       exportConfig: () => get().surfaces,
     }},
     {
       name: 'openvj-surfaces',
-      partialize: (s) => ({ surfaces: s.surfaces, activeSurfaceId: s.activeSurfaceId }),
+      partialize: (s) => ({ surfaces: s.surfaces, activeSurfaceId: s.activeSurfaceId, groups: s.groups }),
+      onRehydrateStorage: () => (state) => {
+        if (!state) return
+        // Normalize surfaces from old saves that lack groupId
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        state.surfaces = state.surfaces.map((s: any) => ({ ...s, groupId: s.groupId ?? null }))
+        if (!state.groups) state.groups = []
+      },
     }
   )
 )

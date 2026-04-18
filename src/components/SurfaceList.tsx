@@ -186,6 +186,11 @@ function PresetPicker({ onClose }: PresetPickerProps) {
       maskShape: 'none' as MaskShape,
       maskSoftness: 0.02,
       maskInvert: false,
+      edgeBlendLeft:   0,
+      edgeBlendRight:  0,
+      edgeBlendTop:    0,
+      edgeBlendBottom: 0,
+      groupId: null,
     }))
     importConfig(newSurfaces)
     setActiveSurface(newSurfaces[0].id)
@@ -862,7 +867,8 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
   const maskSoftness = surface.maskSoftness ?? 0.02
   const maskInvert   = surface.maskInvert   ?? false
 
-  const hasFx   = warpAmp > 0 || chromaAb > 0 || pixelate > 0 || vignette > 0
+  const hasEdgeBlend = (surface.edgeBlendLeft ?? 0) > 0 || (surface.edgeBlendRight ?? 0) > 0 || (surface.edgeBlendTop ?? 0) > 0 || (surface.edgeBlendBottom ?? 0) > 0
+  const hasFx   = warpAmp > 0 || chromaAb > 0 || pixelate > 0 || vignette > 0 || hasEdgeBlend
   const hasClr  = hue !== 0 || saturation !== 1 || invert
   const hasTfm  = flipH || flipV || rotation !== 0 || zoom !== 1
   const hasMask = maskShape !== 'none'
@@ -1011,6 +1017,20 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
               <Slider label="Vignette" value={vignette} min={0} max={1} step={0.01}
                 displayValue={vignette === 0 ? 'Off' : vignette.toFixed(2)}
                 onChange={(v) => update({ vignette: v })} disabled={surface.locked} />
+
+              {/* Edge blend */}
+              <div className="pt-1 border-t border-gray-800/40 space-y-2">
+                <span className="text-xs text-gray-500 block">Edge Blend</span>
+                {([
+                  { key: 'edgeBlendTop',    label: 'Top' },
+                  { key: 'edgeBlendBottom', label: 'Bottom' },
+                  { key: 'edgeBlendLeft',   label: 'Left' },
+                  { key: 'edgeBlendRight',  label: 'Right' },
+                ] as { key: 'edgeBlendTop' | 'edgeBlendBottom' | 'edgeBlendLeft' | 'edgeBlendRight'; label: string }[]).map(({ key, label }) => (
+                  <Slider key={key} label={label} value={surface[key] ?? 0} min={0} max={0.5} step={0.005}
+                    displayValue={(surface[key] ?? 0) === 0 ? 'Off' : ((surface[key] ?? 0) * 100).toFixed(0) + '%'}
+                    onChange={(v) => update({ [key]: v })} disabled={surface.locked} />
+                ))}</div>
             </div>
           )}
         </div>
@@ -1213,14 +1233,16 @@ interface SurfaceItemProps {
   onDragOver: (index: number) => void
   onDrop: () => void
   isDragTarget: boolean
+  indented?: boolean
 }
 
-function SurfaceItem({ surface, index, isActive, onSelect, onEditShader, onDragStart, onDragOver, onDrop, isDragTarget }: SurfaceItemProps) {
-  const { toggleVisibility, toggleLock, removeSurface, renameSurface, cloneSurface } = useSurfaceStore()
+function SurfaceItem({ surface, index, isActive, onSelect, onEditShader, onDragStart, onDragOver, onDrop, isDragTarget, indented = false }: SurfaceItemProps) {
+  const { toggleVisibility, toggleLock, removeSurface, renameSurface, cloneSurface, groups, setSurfaceGroup } = useSurfaceStore()
   const [editing, setEditing] = useState(false)
   const [nameValue, setNameValue] = useState(surface.name)
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
+  const [groupMenuOpen, setGroupMenuOpen] = useState(false)
 
   const commitRename = () => {
     renameSurface(surface.id, nameValue)
@@ -1228,6 +1250,7 @@ function SurfaceItem({ surface, index, isActive, onSelect, onEditShader, onDragS
   }
 
   return (
+    <div className={indented ? 'pl-3' : ''}>
     <div
       draggable
       onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDragging(true); onDragStart(index) }}
@@ -1347,6 +1370,53 @@ function SurfaceItem({ surface, index, isActive, onSelect, onEditShader, onDragS
           <IconTrash />
         </button>
       </div>
+
+      {/* Group assignment pill (always visible when in a group; hover to change) */}
+      {groups.length > 0 && (
+        <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => setGroupMenuOpen((o) => !o)}
+            title="Assign to group"
+            className={`p-1 rounded transition-colors cursor-pointer text-xs ${
+              surface.groupId
+                ? 'text-violet-400 hover:text-violet-300 hover:bg-gray-600'
+                : 'opacity-0 group-hover:opacity-100 text-gray-600 hover:text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+          </button>
+          {groupMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setGroupMenuOpen(false)} />
+              <div className="absolute right-0 top-full mt-1 z-50 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-1 min-w-32">
+                {surface.groupId && (
+                  <button
+                    className="w-full px-3 py-1.5 text-xs text-left text-gray-400 hover:text-white hover:bg-gray-700 transition-colors cursor-pointer"
+                    onClick={() => { setSurfaceGroup(surface.id, null); setGroupMenuOpen(false) }}
+                  >
+                    Remove from group
+                  </button>
+                )}
+                {groups.map((g) => (
+                  <button
+                    key={g.id}
+                    className={`w-full px-3 py-1.5 text-xs text-left hover:bg-gray-700 transition-colors cursor-pointer ${
+                      surface.groupId === g.id ? 'text-violet-400' : 'text-gray-300 hover:text-white'
+                    }`}
+                    onClick={() => { setSurfaceGroup(surface.id, g.id); setGroupMenuOpen(false) }}
+                  >
+                    {surface.groupId === g.id ? '✓ ' : ''}{g.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
     </div>
   )
 }
@@ -1361,13 +1431,21 @@ interface SurfaceListProps {
 export function SurfaceList({ collapsed = false, onToggle }: SurfaceListProps = {}) {
   const {
     surfaces,
+    groups,
     activeSurfaceId,
     addSurface,
+    addGroup,
+    removeGroup,
+    renameGroup,
+    toggleGroupCollapsed,
+    toggleGroupVisibility,
     setActiveSurface,
     exportConfig,
     importConfig,
     reorderSurface,
   } = useSurfaceStore()
+  const [renamingGroupId, setRenamingGroupId] = useState<string | null>(null)
+  const [renameGroupVal, setRenameGroupVal] = useState('')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const activeSurface = surfaces.find((s) => s.id === activeSurfaceId) ?? null
@@ -1446,6 +1524,18 @@ export function SurfaceList({ collapsed = false, onToggle }: SurfaceListProps = 
               </svg>
               Presets
             </button>
+            {/* Group button */}
+            <button
+              onClick={addGroup}
+              title="Create layer group"
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-500 text-gray-400 hover:text-gray-200 rounded transition-colors cursor-pointer"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              Group
+            </button>
             {/* Add button */}
             <button
               onClick={addSurface}
@@ -1465,34 +1555,194 @@ export function SurfaceList({ collapsed = false, onToggle }: SurfaceListProps = 
 
       {!collapsed && (
         <>
-          {/* Surface list */}
+          {/* Surface list with groups */}
           <div className="flex-1 overflow-y-auto py-1.5 px-1.5 space-y-0.5 min-h-0">
-            {surfaces.length === 0 ? (
+            {surfaces.length === 0 && groups.length === 0 ? (
               <div className="text-center py-8 text-xs text-gray-500">
                 No surfaces yet — click Add
               </div>
-            ) : (
-              surfaces.map((surface, idx) => (
-                <SurfaceItem
-                  key={surface.id}
-                  surface={surface}
-                  index={idx}
-                  isActive={activeSurfaceId === surface.id}
-                  isDragTarget={dragOverIndex === idx && dragFrom.current !== null && dragFrom.current !== idx}
-                  onSelect={() => setActiveSurface(surface.id)}
-                  onEditShader={() => { setActiveSurface(surface.id); setEditingSurfaceId(surface.id) }}
-                  onDragStart={(i) => { dragFrom.current = i; setDragOverIndex(null) }}
-                  onDragOver={(i) => setDragOverIndex(i)}
-                  onDrop={() => {
-                    if (dragFrom.current !== null && dragFrom.current !== dragOverIndex && dragOverIndex !== null) {
-                      reorderSurface(dragFrom.current, dragOverIndex)
+            ) : (() => {
+              // Build display items preserving z-order (reversed for top-of-list = front)
+              const reversedSurfaces = [...surfaces].map((s, i) => ({ s, origIdx: i })).reverse()
+              const seenGroupIds = new Set<string>()
+              const items: JSX.Element[] = []
+
+              for (const { s: surface, origIdx } of reversedSurfaces) {
+                const gid = surface.groupId ?? null
+
+                if (gid) {
+                  if (!seenGroupIds.has(gid)) {
+                    seenGroupIds.add(gid)
+                    const group = groups.find((g) => g.id === gid)
+                    if (group) {
+                      const groupSurfaces = reversedSurfaces.filter((x) => (x.s.groupId ?? null) === gid)
+                      const allVisible = groupSurfaces.every((x) => x.s.visible)
+                      items.push(
+                        <div key={`group-${gid}`} className="rounded-lg border border-gray-700/60 overflow-hidden">
+                          {/* Group header */}
+                          <div className="flex items-center gap-1 px-2 py-1.5 bg-gray-800/60">
+                            <button
+                              onClick={() => toggleGroupCollapsed(gid)}
+                              className="p-0.5 text-gray-500 hover:text-gray-200 transition-colors cursor-pointer flex-shrink-0"
+                              title={group.collapsed ? 'Expand' : 'Collapse'}
+                            >
+                              <svg className={`w-3 h-3 transition-transform ${group.collapsed ? '' : 'rotate-90'}`}
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+
+                            {renamingGroupId === gid ? (
+                              <input
+                                autoFocus
+                                value={renameGroupVal}
+                                onChange={(e) => setRenameGroupVal(e.target.value)}
+                                onBlur={() => { renameGroup(gid, renameGroupVal); setRenamingGroupId(null) }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') { renameGroup(gid, renameGroupVal); setRenamingGroupId(null) }
+                                  if (e.key === 'Escape') setRenamingGroupId(null)
+                                  e.stopPropagation()
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex-1 min-w-0 bg-gray-700 text-gray-100 text-xs rounded px-1 py-0.5 outline-none"
+                              />
+                            ) : (
+                              <span
+                                className="flex-1 min-w-0 text-xs font-medium text-gray-300 truncate cursor-text"
+                                onDoubleClick={() => { setRenameGroupVal(group.name); setRenamingGroupId(gid) }}
+                                title="Double-click to rename"
+                              >
+                                {group.name}
+                              </span>
+                            )}
+
+                            <span className="text-[10px] text-gray-600 font-mono flex-shrink-0">
+                              {groupSurfaces.length}
+                            </span>
+
+                            <button
+                              onClick={() => toggleGroupVisibility(gid)}
+                              className={`p-0.5 rounded transition-colors cursor-pointer flex-shrink-0 ${
+                                allVisible ? 'text-gray-500 hover:text-gray-200' : 'text-gray-700 hover:text-gray-400'
+                              }`}
+                              title={allVisible ? 'Hide group' : 'Show group'}
+                            >
+                              <IconEye crossed={!allVisible} />
+                            </button>
+                            <button
+                              onClick={() => removeGroup(gid)}
+                              className="p-0.5 rounded text-gray-700 hover:text-red-400 transition-colors cursor-pointer flex-shrink-0"
+                              title="Delete group (surfaces become ungrouped)"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+
+                          {/* Group surfaces */}
+                          {!group.collapsed && (
+                            <div className="py-0.5 space-y-0.5 bg-gray-900/30">
+                              {groupSurfaces.map(({ s: gs, origIdx: gi }) => (
+                                <SurfaceItem
+                                  key={gs.id}
+                                  surface={gs}
+                                  index={gi}
+                                  isActive={activeSurfaceId === gs.id}
+                                  isDragTarget={dragOverIndex === gi && dragFrom.current !== null && dragFrom.current !== gi}
+                                  onSelect={() => setActiveSurface(gs.id)}
+                                  onEditShader={() => { setActiveSurface(gs.id); setEditingSurfaceId(gs.id) }}
+                                  onDragStart={(i) => { dragFrom.current = i; setDragOverIndex(null) }}
+                                  onDragOver={(i) => setDragOverIndex(i)}
+                                  onDrop={() => {
+                                    if (dragFrom.current !== null && dragFrom.current !== dragOverIndex && dragOverIndex !== null) {
+                                      reorderSurface(dragFrom.current, dragOverIndex)
+                                    }
+                                    dragFrom.current = null
+                                    setDragOverIndex(null)
+                                  }}
+                                  indented
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
                     }
-                    dragFrom.current = null
-                    setDragOverIndex(null)
-                  }}
-                />
-              ))
-            )}
+                  }
+                } else {
+                  items.push(
+                    <SurfaceItem
+                      key={surface.id}
+                      surface={surface}
+                      index={origIdx}
+                      isActive={activeSurfaceId === surface.id}
+                      isDragTarget={dragOverIndex === origIdx && dragFrom.current !== null && dragFrom.current !== origIdx}
+                      onSelect={() => setActiveSurface(surface.id)}
+                      onEditShader={() => { setActiveSurface(surface.id); setEditingSurfaceId(surface.id) }}
+                      onDragStart={(i) => { dragFrom.current = i; setDragOverIndex(null) }}
+                      onDragOver={(i) => setDragOverIndex(i)}
+                      onDrop={() => {
+                        if (dragFrom.current !== null && dragFrom.current !== dragOverIndex && dragOverIndex !== null) {
+                          reorderSurface(dragFrom.current, dragOverIndex)
+                        }
+                        dragFrom.current = null
+                        setDragOverIndex(null)
+                      }}
+                    />
+                  )
+                }
+              }
+
+              // Render empty groups (no surfaces assigned yet)
+              for (const group of groups) {
+                if (!seenGroupIds.has(group.id)) {
+                  items.push(
+                    <div key={`group-empty-${group.id}`} className="rounded-lg border border-gray-700/60 overflow-hidden">
+                      <div className="flex items-center gap-1 px-2 py-1.5 bg-gray-800/60">
+                        <span className="w-4 flex-shrink-0" />
+                        {renamingGroupId === group.id ? (
+                          <input
+                            autoFocus
+                            value={renameGroupVal}
+                            onChange={(e) => setRenameGroupVal(e.target.value)}
+                            onBlur={() => { renameGroup(group.id, renameGroupVal); setRenamingGroupId(null) }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') { renameGroup(group.id, renameGroupVal); setRenamingGroupId(null) }
+                              if (e.key === 'Escape') setRenamingGroupId(null)
+                              e.stopPropagation()
+                            }}
+                            className="flex-1 min-w-0 bg-gray-700 text-gray-100 text-xs rounded px-1 py-0.5 outline-none"
+                          />
+                        ) : (
+                          <span
+                            className="flex-1 min-w-0 text-xs font-medium text-gray-500 truncate cursor-text"
+                            onDoubleClick={() => { setRenameGroupVal(group.name); setRenamingGroupId(group.id) }}
+                          >
+                            {group.name}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-gray-700 font-mono flex-shrink-0">0</span>
+                        <button
+                          onClick={() => removeGroup(group.id)}
+                          className="p-0.5 rounded text-gray-700 hover:text-red-400 transition-colors cursor-pointer flex-shrink-0"
+                          title="Delete group"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="px-3 py-2 text-xs text-gray-700 text-center">
+                        Assign surfaces via the group button on each surface
+                      </div>
+                    </div>
+                  )
+                }
+              }
+
+              return items
+            })()}
           </div>
 
           {/* Import / Export */}

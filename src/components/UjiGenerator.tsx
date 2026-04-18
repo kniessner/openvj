@@ -8,8 +8,6 @@ import { useSurfaceStore } from '../stores/surfaceStore'
 import { assetTextureManager } from '../lib/assetTextureManager'
 import { audioEngine } from '../lib/audioEngine'
 
-// ─── UI primitives ────────────────────────────────────────────────────────────
-
 function Section({ title, badge, children }: { title: string; badge?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="space-y-2.5">
@@ -77,14 +75,11 @@ const SHAPES = [
   { v: 3, label: 'Triangle' }, { v: 4, label: 'Line' },
 ] as const
 
-// Preset groups for display
 const STATIC_PRESETS  = ['Galaxy', 'Helix', 'Vortex', 'Geometric', 'Storm', 'Triangle']
 const AUDIO_PRESETS   = ['Beat Pulse', 'Bass Bloom', 'Freq Web']
 
-// ─── Main component ───────────────────────────────────────────────────────────
-
 interface UjiGeneratorProps {
-  asset: Asset | null   // null = create new
+  asset: Asset | null
   onClose: () => void
 }
 
@@ -107,7 +102,6 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
   const animatorRef   = useRef<UjiAnimator | null>(null)
   const animRafRef    = useRef<number>(0)
   const animActiveRef = useRef(false)
-  // paramsRef keeps the latest params accessible inside long-lived RAF closures
   const paramsRef     = useRef(params)
 
   const setParam  = <K extends keyof UjiParams>(k: K, v: UjiParams[K]) =>
@@ -119,10 +113,8 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
     })
   }
 
-  // Sync paramsRef on every render so RAF closures always see fresh values
   useEffect(() => { paramsRef.current = params }, [params])
 
-  // ── Static preview (single debounced effect) ──────────────────────────────
   useEffect(() => {
     if (params.animate) return
     setRendering(true)
@@ -137,7 +129,6 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
     return () => clearTimeout(id)
   }, [params, seed])
 
-  // ── Animated preview (RAF loop) ───────────────────────────────────────────
   useEffect(() => {
     if (!params.animate) {
       animActiveRef.current = false
@@ -157,7 +148,7 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
       if (!animActiveRef.current) return
       const anim = animatorRef.current
       if (anim) {
-        anim.params = paramsRef.current  // read latest without recreating effect
+        anim.params = paramsRef.current
         anim.step(audioEngine.low, audioEngine.mid, audioEngine.high, audioEngine.beat)
       }
       animRafRef.current = requestAnimationFrame(loop)
@@ -168,12 +159,10 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
       animActiveRef.current = false
       cancelAnimationFrame(animRafRef.current)
     }
-    // Reinit when shape structure changes; other params are synced via anim.params
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.animate, params.shape, params.segments, params.radius,
       params.bgR, params.bgG, params.bgB])
 
-  // ── Save ──────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (asset) {
       updateAsset(asset.id, { name, ujiParams: params })
@@ -195,7 +184,6 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
       <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl"
         onClick={(e) => e.stopPropagation()}>
 
-        {/* ── Header ── */}
         <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-700 flex-shrink-0">
           <svg className="w-4 h-4 text-pink-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -220,7 +208,6 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
           </button>
         </div>
 
-        {/* ── Preset bar ── */}
         <div className="flex items-center gap-1 px-5 py-2 border-b border-gray-800 bg-gray-900/50 flex-shrink-0 overflow-x-auto">
           <span className="text-xs text-gray-600 mr-1 flex-shrink-0">Static:</span>
           {STATIC_PRESETS.map((key) => {
@@ -249,12 +236,8 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
           })}
         </div>
 
-        {/* ── Body ── */}
         <div className="flex-1 flex overflow-hidden min-h-0">
-
-          {/* Controls */}
           <div className="w-80 flex-shrink-0 overflow-y-auto border-r border-gray-800 p-4 space-y-5">
-
             <Section title="Geometry">
               <div className="space-y-1.5">
                 <span className="text-xs text-gray-400">Shape</span>
@@ -310,7 +293,6 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
                 onChange={(r,g,b) => setParams((p) => ({ ...p, bgR: r, bgG: g, bgB: b }))} />
             </Section>
 
-            {/* Animate toggle + controls */}
             <Section title="Animation"
               badge={
                 <button onClick={() => setParam('animate', !params.animate)}
@@ -333,7 +315,6 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
               )}
             </Section>
 
-            {/* Audio modulation (only when animated) */}
             {params.animate && (
               <Section title="Audio Modulation"
                 badge={<span className="text-xs text-orange-500 font-mono">requires mic</span>}>
@@ -351,10 +332,8 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
                 </label>
               </Section>
             )}
-
           </div>
 
-          {/* Preview */}
           <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 bg-gray-950/50 min-h-0">
             <div className="relative rounded-xl overflow-hidden border border-gray-700 shadow-xl w-full"
               style={{ aspectRatio: '1/1', maxWidth: '520px' }}>
@@ -406,7 +385,6 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
           </div>
         </div>
 
-        {/* ── Footer ── */}
         <div className="flex items-center justify-between px-5 py-3 border-t border-gray-700 flex-shrink-0">
           <p className="text-xs text-gray-700">
             {params.animate ? 'Animated · audio-reactive' : `Static · ${params.segments} segs × ${params.iterations} iters`}

@@ -183,7 +183,6 @@ ${code}`,
     const TEX_SIZE = 1024
 
     if (params.animate) {
-      // ── Animated mode: incremental rendering with audio reactivity ──────────
       const canvas = document.createElement('canvas')
       canvas.width = canvas.height = TEX_SIZE
       const animator = new UjiAnimator(canvas, params)
@@ -204,7 +203,6 @@ ${code}`,
       })
       return tex
     } else {
-      // ── Static mode: render once, optional CSS hue rotation animation ───────
       const srcCanvas = document.createElement('canvas')
       srcCanvas.width = srcCanvas.height = TEX_SIZE
       renderUji(srcCanvas, params)
@@ -216,7 +214,6 @@ ${code}`,
 
       const tex = new THREE.CanvasTexture(dispCanvas)
       tex.colorSpace = THREE.SRGBColorSpace
-      // Static with hue animation: disable per-frame mipmap regeneration
       const speed = params.hueshiftSpeed ?? 0
       if (speed !== 0) {
         tex.generateMipmaps = false
