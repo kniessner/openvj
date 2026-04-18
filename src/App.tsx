@@ -1210,6 +1210,48 @@ function PerfOverlay({
   )
 }
 
+// ─── Panel resize hook ───────────────────────────────────────────────────────
+
+function usePanelHeight(key: string, def: number, min = 60, max = 700) {
+  const [h, setH] = useState(() => {
+    const s = localStorage.getItem(key)
+    return s ? parseInt(s, 10) : def
+  })
+  const hRef = useRef(h)
+  hRef.current = h
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    const startY = e.clientY
+    const startH = hRef.current
+    const onMove = (ev: MouseEvent) => {
+      const newH = Math.max(min, Math.min(max, startH + ev.clientY - startY))
+      setH(newH)
+      localStorage.setItem(key, String(newH))
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [key, min, max])
+
+  return [h, onMouseDown] as const
+}
+
+function PanelDivider({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
+  return (
+    <div
+      onMouseDown={onMouseDown}
+      className="h-1.5 flex-shrink-0 bg-gray-800/80 hover:bg-[#d4f542]/30 active:bg-[#d4f542]/50 cursor-row-resize transition-colors group"
+      title="Drag to resize"
+    >
+      <div className="w-8 h-0.5 bg-gray-700 group-hover:bg-[#d4f542]/50 rounded-full mx-auto mt-0.5 transition-colors" />
+    </div>
+  )
+}
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -1219,16 +1261,14 @@ export default function App() {
     const s = localStorage.getItem('openvj-sidebar-width')
     return s ? parseInt(s, 10) : 288
   })
-  const [mediaHeight, setMediaHeight] = useState(() => {
-    const s = localStorage.getItem('openvj-media-height')
-    return s ? parseInt(s, 10) : 240
-  })
   const sidebarDragRef = useRef(false)
   const sidebarDragStartXRef = useRef(0)
   const sidebarDragStartWRef = useRef(0)
-  const mediaDragRef = useRef(false)
-  const mediaDragStartYRef = useRef(0)
-  const mediaDragStartHRef = useRef(0)
+  const [mediaH,    startMediaDrag]   = usePanelHeight('openvj-media-h',    240, 60, 700)
+  const [surfacesH, startSurfacesDrag] = usePanelHeight('openvj-surfaces-h', 300, 60, 700)
+  const [scenesH,   startScenesDrag]  = usePanelHeight('openvj-scenes-h',   170, 60, 500)
+  const [globalH,   startGlobalDrag]  = usePanelHeight('openvj-global-h',   140, 60, 400)
+  const [p5H,       startP5Drag]      = usePanelHeight('openvj-p5-h',       200, 60, 600)
   const [mediaOpen, setMediaOpen] = useState(true)
   const [surfaceOpen, setSurfaceOpen] = useState(true)
   const [sceneOpen, setSceneOpen] = useState(true)
@@ -1261,25 +1301,6 @@ export default function App() {
     }
     const onUp = () => {
       sidebarDragRef.current = false
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-  }
-
-  const startMediaDrag = (e: React.MouseEvent) => {
-    mediaDragRef.current = true
-    mediaDragStartYRef.current = e.clientY
-    mediaDragStartHRef.current = mediaHeight
-    const onMove = (ev: MouseEvent) => {
-      if (!mediaDragRef.current) return
-      const h = Math.max(80, Math.min(600, mediaDragStartHRef.current + ev.clientY - mediaDragStartYRef.current))
-      setMediaHeight(h)
-      localStorage.setItem('openvj-media-height', String(h))
-    }
-    const onUp = () => {
-      mediaDragRef.current = false
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
@@ -1584,69 +1605,74 @@ export default function App() {
 
         {/* ── Sidebar ── */}
         {sidebarOpen && (
-          <aside className="bg-gray-900 border-r border-gray-700/60 flex flex-col flex-shrink-0 overflow-hidden relative"
+          <aside className="bg-gray-900 border-r border-gray-700/60 flex flex-col flex-shrink-0 relative"
             style={{ width: sidebarWidth }}>
 
-            {/* Media browser — collapsible, resizable */}
-            <div
-              className="border-b border-gray-700 flex flex-col relative overflow-hidden flex-shrink-0"
-              style={mediaOpen ? { height: mediaHeight } : undefined}
-            >
-              <MediaBrowser
-                onEditShader={setEditingShader}
-                onNewUji={() => { setEditingUji(null); setCreatingUji(true) }}
-                onEditUji={(a) => { setEditingUji(a); setCreatingUji(false) }}
-                collapsed={!mediaOpen}
-                onToggle={() => setMediaOpen((o) => !o)}
-              />
-            </div>
+            {/* ── Scrollable sections ── */}
+            <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
 
-            {/* Panel resize handle between media and surfaces */}
-            {mediaOpen && surfaceOpen && (
-              <div
-                onMouseDown={startMediaDrag}
-                className="h-1.5 bg-gray-800 hover:bg-[#d4f542]/40 active:bg-[#d4f542]/60 cursor-row-resize flex-shrink-0 transition-colors group"
-                title="Drag to resize panels"
-              >
-                <div className="w-8 h-0.5 bg-gray-600 group-hover:bg-[#d4f542]/60 rounded-full mx-auto mt-0.5 transition-colors" />
+              {/* Media */}
+              <div className="flex flex-col overflow-hidden flex-shrink-0 border-b border-gray-700"
+                style={mediaOpen ? { height: mediaH } : undefined}>
+                <MediaBrowser
+                  onEditShader={setEditingShader}
+                  onNewUji={() => { setEditingUji(null); setCreatingUji(true) }}
+                  onEditUji={(a) => { setEditingUji(a); setCreatingUji(false) }}
+                  collapsed={!mediaOpen}
+                  onToggle={() => setMediaOpen((o) => !o)}
+                />
               </div>
-            )}
+              {mediaOpen && <PanelDivider onMouseDown={startMediaDrag} />}
 
-            {/* Surfaces + inspector — collapsible, takes remaining space */}
-            <div className={`flex flex-col overflow-hidden ${surfaceOpen ? 'flex-1 min-h-0' : 'flex-shrink-0'}`}>
-              <SurfaceList
-                collapsed={!surfaceOpen}
-                onToggle={() => setSurfaceOpen((o) => !o)}
-              />
+              {/* Surfaces + inspector */}
+              <div className="flex flex-col overflow-hidden flex-shrink-0 border-b border-gray-700/60"
+                style={surfaceOpen ? { height: surfacesH } : undefined}>
+                <SurfaceList
+                  collapsed={!surfaceOpen}
+                  onToggle={() => setSurfaceOpen((o) => !o)}
+                />
+              </div>
+              {surfaceOpen && <PanelDivider onMouseDown={startSurfacesDrag} />}
+
+              {/* Scenes */}
+              <div className="flex flex-col overflow-hidden flex-shrink-0 border-b border-gray-700/60"
+                style={sceneOpen ? { height: scenesH } : undefined}>
+                <ScenesPanel
+                  collapsed={!sceneOpen}
+                  onToggle={() => setSceneOpen((o) => !o)}
+                  onSaveScene={saveCurrentScene}
+                />
+              </div>
+              {sceneOpen && <PanelDivider onMouseDown={startScenesDrag} />}
+
+              {/* Global Output FX */}
+              <div className="flex flex-col overflow-hidden flex-shrink-0 border-b border-gray-700/60"
+                style={globalFxOpen ? { height: globalH } : undefined}>
+                <GlobalOutputPanel
+                  collapsed={!globalFxOpen}
+                  onToggle={() => setGlobalFxOpen((o) => !o)}
+                />
+              </div>
+              {globalFxOpen && <PanelDivider onMouseDown={startGlobalDrag} />}
+
+              {/* p5.js Creative Coding */}
+              <div className="flex flex-col overflow-hidden flex-shrink-0"
+                style={p5jsOpen ? { height: p5H } : undefined}>
+                <P5JsPanel
+                  collapsed={!p5jsOpen}
+                  onToggle={() => setP5jsOpen((o) => !o)}
+                />
+              </div>
+              {p5jsOpen && <PanelDivider onMouseDown={startP5Drag} />}
+
             </div>
 
-            {/* Scenes panel — collapsible */}
-            <div className="border-t border-gray-700/60 flex-shrink-0">
-              <ScenesPanel
-                collapsed={!sceneOpen}
-                onToggle={() => setSceneOpen((o) => !o)}
-                onSaveScene={saveCurrentScene}
-              />
-            </div>
-
-            {/* Global Output FX */}
-            <GlobalOutputPanel
-              collapsed={!globalFxOpen}
-              onToggle={() => setGlobalFxOpen((o) => !o)}
-            />
-
-            {/* p5.js Creative Coding */}
-            <P5JsPanel
-              collapsed={!p5jsOpen}
-              onToggle={() => setP5jsOpen((o) => !o)}
-            />
-
-            {/* Status bar */}
+            {/* Status bar — always visible at bottom */}
             <div className="px-3 py-1.5 border-t border-gray-700/60 flex items-center justify-between text-xs text-gray-700 flex-shrink-0">
               <span>{surfaces.length} surface{surfaces.length !== 1 ? 's' : ''}</span>
               <span>{assets.length} asset{assets.length !== 1 ? 's' : ''}</span>
             </div>
-            
+
             {/* p5.js Status */}
             <P5JsStatus />
 

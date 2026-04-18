@@ -101,7 +101,7 @@ function CornerHandle({ position, isHovered, isLocked, canRemove, onDrag, onHove
   }, [gl, setDraggingCorner])
 
   const color = isLocked ? '#6b7280' : isDragging || isHovered ? '#d4f542' : '#ef4444'
-  const size  = isDragging || isHovered ? 0.13 : 0.09
+  const size  = isDragging || isHovered ? 0.075 : 0.05
 
   return (
     <mesh
@@ -152,7 +152,7 @@ function EdgeHandle({ position, onClick }: EdgeHandleProps) {
       onPointerEnter={() => { setHovered(true); gl.domElement.style.cursor = 'copy' }}
       onPointerLeave={() => { setHovered(false); gl.domElement.style.cursor = 'auto' }}
     >
-      <sphereGeometry args={[hovered ? 0.065 : 0.045, 12, 12]} />
+      <sphereGeometry args={[hovered ? 0.04 : 0.027, 10, 10]} />
       <meshBasicMaterial color="#d4f542" transparent opacity={hovered ? 0.9 : 0.4} />
     </mesh>
   )
@@ -346,7 +346,7 @@ export function SurfaceMesh({ surface, presentMode = false }: SurfaceMeshProps) 
             [surface.corners[0].x, surface.corners[0].y, 0.005],
           ]}
           color="#d4f542"
-          lineWidth={1.5}
+          lineWidth={0.8}
         />
       )}
     </group>
