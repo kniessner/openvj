@@ -2,25 +2,68 @@ import { useRef, useMemo, useState, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html, Line } from '@react-three/drei'
 import * as THREE from 'three'
-import { Surface as SurfaceType, useSurfaceStore } from '../stores/surfaceStore'
+import { Corner, Surface as SurfaceType, useSurfaceStore, defaultUVForIndex } from '../stores/surfaceStore'
 import { ProjectedMaterial } from '../shaders/ProjectedMaterial'
 import { useAssetStore, BUILTIN_ASSETS } from '../stores/assetStore'
 import { assetTextureManager } from '../lib/assetTextureManager'
 import { audioEngine } from '../lib/audioEngine'
 
-// ─── Corner handle ───────────────────────────────────────────────────────────
+// ─── Polygon geometry ─────────────────────────────────────────────────────────
+// Fan-triangulation from centroid. UVs are either per-corner stored values or
+// computed from the perimeter-distribution fallback for legacy saves.
+
+function buildPolygonGeometry(corners: Corner[]): THREE.BufferGeometry {
+  const N = corners.length
+  const cx = corners.reduce((s, c) => s + c.x, 0) / N
+  const cy = corners.reduce((s, c) => s + c.y, 0) / N
+
+  const positions: number[] = []
+  const uvs: number[] = []
+  const indices: number[] = []
+
+  for (let i = 0; i < N; i++) {
+    const c = corners[i]
+    const def = defaultUVForIndex(i, N)
+    positions.push(c.x, c.y, 0)
+    uvs.push(c.u ?? def.u, c.v ?? def.v)
+  }
+  // Centroid vertex — UV is the average of all corner UVs
+  let cu = 0, cv = 0
+  for (let i = 0; i < N; i++) {
+    const def = defaultUVForIndex(i, N)
+    cu += corners[i].u ?? def.u
+    cv += corners[i].v ?? def.v
+  }
+  positions.push(cx, cy, 0)
+  uvs.push(cu / N, cv / N)
+
+  // Fan triangles: centroid(N), corner[i], corner[(i+1)%N]
+  for (let i = 0; i < N; i++) {
+    indices.push(N, i, (i + 1) % N)
+  }
+
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geo.setAttribute('uv',       new THREE.Float32BufferAttribute(uvs, 2))
+  geo.setIndex(indices)
+  geo.computeVertexNormals()
+  return geo
+}
+
+// ─── Corner handle ────────────────────────────────────────────────────────────
 
 interface CornerHandleProps {
   position: THREE.Vector3
   isHovered: boolean
   isLocked: boolean
+  canRemove: boolean   // only when polygon has > 3 corners
   onDrag: (delta: THREE.Vector3) => void
   onHover: (hovered: boolean) => void
+  onRemove: () => void
 }
 
-function CornerHandle({ position, isHovered, isLocked, onDrag, onHover }: CornerHandleProps) {
+function CornerHandle({ position, isHovered, isLocked, canRemove, onDrag, onHover, onRemove }: CornerHandleProps) {
   const [isDragging, setIsDragging] = useState(false)
-  // Ref so native event callbacks never go stale
   const isDraggingRef = useRef(false)
   const onDragRef = useRef(onDrag)
   useEffect(() => { onDragRef.current = onDrag })
@@ -28,10 +71,8 @@ function CornerHandle({ position, isHovered, isLocked, onDrag, onHover }: Corner
   const { gl } = useThree()
   const { setDraggingCorner } = useSurfaceStore()
 
-  // Attach native pointer handlers so drag works even when cursor leaves the sphere
   useEffect(() => {
     const canvas = gl.domElement
-
     const onMove = (e: PointerEvent) => {
       if (!isDraggingRef.current) return
       onDragRef.current(new THREE.Vector3(
@@ -48,7 +89,6 @@ function CornerHandle({ position, isHovered, isLocked, onDrag, onHover }: Corner
       try { canvas.releasePointerCapture(e.pointerId) } catch { /* ignored */ }
       canvas.style.cursor = 'auto'
     }
-
     canvas.addEventListener('pointermove', onMove)
     canvas.addEventListener('pointerup', onUp)
     canvas.addEventListener('pointercancel', onUp)
@@ -60,7 +100,7 @@ function CornerHandle({ position, isHovered, isLocked, onDrag, onHover }: Corner
   }, [gl, setDraggingCorner])
 
   const color = isLocked ? '#6b7280' : isDragging || isHovered ? '#60a5fa' : '#ef4444'
-  const size = isDragging || isHovered ? 0.13 : 0.09
+  const size  = isDragging || isHovered ? 0.13 : 0.09
 
   return (
     <mesh
@@ -74,9 +114,14 @@ function CornerHandle({ position, isHovered, isLocked, onDrag, onHover }: Corner
         try { gl.domElement.setPointerCapture(e.nativeEvent.pointerId) } catch { /* ignored */ }
         gl.domElement.style.cursor = 'grabbing'
       }}
+      onDoubleClick={(e) => {
+        if (isLocked || !canRemove) return
+        e.stopPropagation()
+        onRemove()
+      }}
       onPointerEnter={() => {
         if (!isLocked) onHover(true)
-        gl.domElement.style.cursor = isLocked ? 'default' : 'grab'
+        gl.domElement.style.cursor = isLocked ? 'default' : canRemove ? 'pointer' : 'grab'
       }}
       onPointerLeave={() => {
         onHover(false)
@@ -89,35 +134,64 @@ function CornerHandle({ position, isHovered, isLocked, onDrag, onHover }: Corner
   )
 }
 
+// ─── Edge midpoint handle (click to add a corner) ────────────────────────────
+
+interface EdgeHandleProps {
+  position: THREE.Vector3
+  onClick: () => void
+}
+
+function EdgeHandle({ position, onClick }: EdgeHandleProps) {
+  const [hovered, setHovered] = useState(false)
+  const { gl } = useThree()
+  return (
+    <mesh
+      position={position}
+      onClick={(e) => { e.stopPropagation(); onClick() }}
+      onPointerEnter={() => { setHovered(true); gl.domElement.style.cursor = 'copy' }}
+      onPointerLeave={() => { setHovered(false); gl.domElement.style.cursor = 'auto' }}
+    >
+      <sphereGeometry args={[hovered ? 0.065 : 0.045, 12, 12]} />
+      <meshBasicMaterial color="#60a5fa" transparent opacity={hovered ? 0.9 : 0.45} />
+    </mesh>
+  )
+}
+
 // ─── Surface mesh ─────────────────────────────────────────────────────────────
 
 interface SurfaceMeshProps {
   surface: SurfaceType
+  presentMode?: boolean
 }
 
-export function SurfaceMesh({ surface }: SurfaceMeshProps) {
+export function SurfaceMesh({ surface, presentMode = false }: SurfaceMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null)
-  const { activeSurfaceId, setActiveSurface, updateCorner } = useSurfaceStore()
+  const { activeSurfaceId, setActiveSurface, updateCorner, addCorner, removeCorner, isPresenting } = useSurfaceStore()
   const [hoveredHandle, setHoveredHandle] = useState<number | null>(null)
   const isActive = activeSurfaceId === surface.id
 
   const assets = useAssetStore((s) => s.assets)
   const asset = (assets.find((a) => a.id === surface.assetId) ?? BUILTIN_ASSETS.find((a) => a.id === surface.assetId)) ?? null
 
-  // Shared plane geometry (created once)
-  const geometry = useMemo(() => new THREE.PlaneGeometry(1, 1, 32, 32), [])
+  // Rebuild polygon geometry only when corners change
+  const cornersKey = surface.corners.map(c => `${c.x.toFixed(4)},${c.y.toFixed(4)}`).join('|')
+  const geometry = useMemo(
+    () => buildPolygonGeometry(surface.corners),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cornersKey]
+  )
+
+  // Dispose old geometry on key change
+  useEffect(() => () => geometry.dispose(), [geometry])
 
   // Canvas fallback texture — shows surface name on a grid
   const canvasTexture = useMemo(() => {
     const canvas = document.createElement('canvas')
-    canvas.width = 256
-    canvas.height = 256
+    canvas.width = 256; canvas.height = 256
     const ctx = canvas.getContext('2d')!
     ctx.fillStyle = '#1a2234'
     ctx.fillRect(0, 0, 256, 256)
-    ctx.strokeStyle = '#2563eb'
-    ctx.lineWidth = 1
-    ctx.globalAlpha = 0.3
+    ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 1; ctx.globalAlpha = 0.3
     for (let i = 0; i <= 4; i++) {
       const p = (i / 4) * 256
       ctx.beginPath()
@@ -137,32 +211,24 @@ export function SurfaceMesh({ surface }: SurfaceMeshProps) {
 
   const customShader = surface.customShader ?? null
 
-  // Material — rebuilt when canvas texture or custom shader changes
   const material = useMemo(() => {
     const mat = new ProjectedMaterial({ transparent: true, side: THREE.DoubleSide, customShader })
     mat.setTexture(canvasTexture)
     return mat
   }, [canvasTexture, customShader])
 
-  // Load and apply asset texture whenever assetId or shader code changes
   useEffect(() => {
-    if (!asset) {
-      material.setTexture(canvasTexture)
-      return
-    }
+    if (!asset) { material.setTexture(canvasTexture); return }
     assetTextureManager.load(asset).then((tex) => {
       material.setTexture(tex ?? canvasTexture)
     })
   }, [asset, surface.assetId, material, canvasTexture])
 
-  // Apply blend mode when it changes
   useEffect(() => {
     material.setBlendMode(surface.blendMode ?? 'normal')
   }, [surface.blendMode, material])
 
-  // Sync surface props to material every frame
   useFrame(() => {
-    material.setCorners(surface.corners)
     material.setOpacity(surface.opacity ?? 0.95)
     material.setBrightness(surface.brightness ?? 0)
     material.setContrast(surface.contrast ?? 0)
@@ -194,12 +260,10 @@ export function SurfaceMesh({ surface }: SurfaceMeshProps) {
     material.tick(performance.now() / 1000)
   })
 
-  const cornerPositions = useMemo(
-    () => surface.corners.map((c) => new THREE.Vector3(c.x, c.y, 0.01)),
-    [surface.corners]
-  )
-
   if (!surface.visible) return null
+
+  const showHandles = isActive && !surface.locked && !presentMode && !isPresenting
+  const N = surface.corners.length
 
   return (
     <group>
@@ -210,39 +274,52 @@ export function SurfaceMesh({ surface }: SurfaceMeshProps) {
         onClick={(e) => { e.stopPropagation(); setActiveSurface(surface.id) }}
       />
 
-      {isActive && !surface.locked &&
-        cornerPositions.map((pos, i) => (
-          <CornerHandle
-            key={i}
-            position={pos}
-            isHovered={hoveredHandle === i}
-            isLocked={surface.locked}
-            onDrag={(d) => {
-              const c = surface.corners[i]
-              updateCorner(surface.id, i, { x: c.x + d.x, y: c.y + d.y })
-            }}
-            onHover={(h) => setHoveredHandle(h ? i : null)}
-          />
-        ))}
+      {/* Corner handles */}
+      {showHandles && surface.corners.map((c, i) => (
+        <CornerHandle
+          key={i}
+          position={new THREE.Vector3(c.x, c.y, 0.01)}
+          isHovered={hoveredHandle === i}
+          isLocked={surface.locked}
+          canRemove={N > 3}
+          onDrag={(d) => {
+            updateCorner(surface.id, i, { x: c.x + d.x, y: c.y + d.y })
+          }}
+          onHover={(h) => setHoveredHandle(h ? i : null)}
+          onRemove={() => removeCorner(surface.id, i)}
+        />
+      ))}
 
-      {isActive && (
+      {/* Edge midpoint handles — click to insert a corner */}
+      {showHandles && surface.corners.map((c, i) => {
+        const next = surface.corners[(i + 1) % N]
+        return (
+          <EdgeHandle
+            key={`edge-${i}`}
+            position={new THREE.Vector3((c.x + next.x) / 2, (c.y + next.y) / 2, 0.005)}
+            onClick={() => addCorner(surface.id, i)}
+          />
+        )
+      })}
+
+      {/* Surface label */}
+      {isActive && !presentMode && !isPresenting && (
         <Html
           position={[surface.corners[0].x, surface.corners[0].y + 0.35, 0]}
           style={{ pointerEvents: 'none', userSelect: 'none' }}
         >
           <div className="bg-blue-600/90 backdrop-blur-sm text-white text-xs px-2 py-0.5 rounded shadow-lg whitespace-nowrap font-medium">
             {surface.name}
+            {N !== 4 && <span className="ml-1 opacity-60">{N}pt</span>}
           </div>
         </Html>
       )}
 
-      {isActive && (
+      {/* Selection outline */}
+      {isActive && !presentMode && !isPresenting && (
         <Line
           points={[
-            [surface.corners[0].x, surface.corners[0].y, 0.005],
-            [surface.corners[1].x, surface.corners[1].y, 0.005],
-            [surface.corners[2].x, surface.corners[2].y, 0.005],
-            [surface.corners[3].x, surface.corners[3].y, 0.005],
+            ...surface.corners.map(c => [c.x, c.y, 0.005] as [number, number, number]),
             [surface.corners[0].x, surface.corners[0].y, 0.005],
           ]}
           color="#3b82f6"

@@ -4,6 +4,8 @@ import { persist } from 'zustand/middleware'
 export interface Corner {
   x: number
   y: number
+  u?: number  // content UV 0-1, pinned when corner is moved
+  v?: number  // content UV 0-1
 }
 
 export type BlendMode = 'normal' | 'add' | 'screen' | 'multiply'
@@ -12,7 +14,7 @@ export type MaskShape = 'none' | 'ellipse' | 'triangle' | 'diamond' | 'top' | 'b
 export interface Surface {
   id: string
   name: string
-  corners: [Corner, Corner, Corner, Corner] // TL, TR, BR, BL
+  corners: Corner[]  // min 3, default 4 (TL, TR, BR, BL)
   visible: boolean
   locked: boolean
   opacity: number
@@ -61,9 +63,14 @@ interface SurfaceState {
   _future: Surface[][]
   undo: () => void
   redo: () => void
+  /** isPresenting — transient, not persisted. Hides handles/grid in both fullscreen + output mode. */
+  isPresenting: boolean
+  setIsPresenting: (v: boolean) => void
   addSurface: () => void
   removeSurface: (id: string) => void
   updateCorner: (surfaceId: string, cornerIndex: number, position: Corner) => void
+  addCorner: (surfaceId: string, afterIndex: number) => void
+  removeCorner: (surfaceId: string, index: number) => void
   setActiveSurface: (id: string | null) => void
   setDraggingCorner: (v: boolean) => void
   toggleVisibility: (id: string) => void
@@ -81,11 +88,20 @@ interface SurfaceState {
   exportConfig: () => Surface[]
 }
 
-const defaultCorners: [Corner, Corner, Corner, Corner] = [
-  { x: -2, y: 2 },   // Top Left
-  { x: 2, y: 2 },    // Top Right
-  { x: 2, y: -2 },   // Bottom Right
-  { x: -2, y: -2 },  // Bottom Left
+/** Distribute N corners evenly around the perimeter of a unit square (clockwise from TL). */
+export function defaultUVForIndex(i: number, N: number): { u: number; v: number } {
+  const t = (i / N) * 4
+  if (t <= 1) return { u: t,     v: 1 }
+  if (t <= 2) return { u: 1,     v: 2 - t }
+  if (t <= 3) return { u: 3 - t, v: 0 }
+  return              { u: 0,     v: t - 3 }
+}
+
+const defaultCorners: Corner[] = [
+  { x: -2, y:  2, u: 0, v: 1 },  // Top Left
+  { x:  2, y:  2, u: 1, v: 1 },  // Top Right
+  { x:  2, y: -2, u: 1, v: 0 },  // Bottom Right
+  { x: -2, y: -2, u: 0, v: 0 },  // Bottom Left
 ]
 
 const generateId = () => Math.random().toString(36).substr(2, 9)
@@ -158,6 +174,8 @@ export const useSurfaceStore = create<SurfaceState>()(
       ],
       activeSurfaceId: null,
       isDraggingCorner: false,
+      isPresenting: false,
+      setIsPresenting: (v) => set({ isPresenting: v }),
       snapGrid: 0,
       setSnapGrid: (v) => set({ snapGrid: v }),
       _history: [],
@@ -201,10 +219,10 @@ export const useSurfaceStore = create<SurfaceState>()(
               id,
               name: `Surface ${next}`,
               corners: [
-                { x: -2 + offset, y: 2 + offset },
-                { x: 2 + offset, y: 2 + offset },
-                { x: 2 + offset, y: -2 + offset },
-                { x: -2 + offset, y: -2 + offset },
+                { x: -2 + offset, y:  2 + offset, u: 0, v: 1 },
+                { x:  2 + offset, y:  2 + offset, u: 1, v: 1 },
+                { x:  2 + offset, y: -2 + offset, u: 1, v: 0 },
+                { x: -2 + offset, y: -2 + offset, u: 0, v: 0 },
               ],
               ...defaultSurfaceProps,
             },
@@ -225,22 +243,53 @@ export const useSurfaceStore = create<SurfaceState>()(
       updateCorner: (surfaceId, cornerIndex, position) => {
         set((state) => {
           const snap = state.snapGrid
-          const snapped: Corner = snap > 0
-            ? { x: Math.round(position.x / snap) * snap, y: Math.round(position.y / snap) * snap }
-            : position
           return {
-            surfaces: state.surfaces.map((surface) =>
-              surface.id === surfaceId
-                ? {
-                    ...surface,
-                    corners: surface.corners.map((corner, idx) =>
-                      idx === cornerIndex ? snapped : corner
-                    ) as [Corner, Corner, Corner, Corner],
-                  }
-                : surface
-            ),
+            surfaces: state.surfaces.map((surface) => {
+              if (surface.id !== surfaceId) return surface
+              const existing = surface.corners[cornerIndex]
+              if (!existing) return surface
+              const snapped: Corner = snap > 0
+                ? { ...existing, x: Math.round(position.x / snap) * snap, y: Math.round(position.y / snap) * snap }
+                : { ...existing, x: position.x, y: position.y }
+              return {
+                ...surface,
+                corners: surface.corners.map((c, idx) => idx === cornerIndex ? snapped : c),
+              }
+            }),
           }
         })
+      },
+
+      addCorner: (surfaceId, afterIndex) => {
+        _pushHistory()
+        set((state) => ({
+          surfaces: state.surfaces.map((surface) => {
+            if (surface.id !== surfaceId) return surface
+            const N = surface.corners.length
+            const a = surface.corners[afterIndex]
+            const b = surface.corners[(afterIndex + 1) % N]
+            const newCorner: Corner = {
+              x: (a.x + b.x) / 2,
+              y: (a.y + b.y) / 2,
+              u: ((a.u ?? defaultUVForIndex(afterIndex, N).u) + (b.u ?? defaultUVForIndex((afterIndex + 1) % N, N).u)) / 2,
+              v: ((a.v ?? defaultUVForIndex(afterIndex, N).v) + (b.v ?? defaultUVForIndex((afterIndex + 1) % N, N).v)) / 2,
+            }
+            const corners = [...surface.corners]
+            corners.splice(afterIndex + 1, 0, newCorner)
+            return { ...surface, corners }
+          }),
+        }))
+      },
+
+      removeCorner: (surfaceId, index) => {
+        _pushHistory()
+        set((state) => ({
+          surfaces: state.surfaces.map((surface) => {
+            if (surface.id !== surfaceId) return surface
+            if (surface.corners.length <= 3) return surface  // minimum 3 corners
+            return { ...surface, corners: surface.corners.filter((_, i) => i !== index) }
+          }),
+        }))
       },
 
       setActiveSurface: (id) => set({ activeSurfaceId: id }),
@@ -274,7 +323,7 @@ export const useSurfaceStore = create<SurfaceState>()(
             surface.id === id
               ? {
                   ...surface,
-                  corners: [...defaultCorners],
+                  corners: defaultCorners.map(c => ({ ...c })),
                   opacity: defaultSurfaceProps.opacity,
                   brightness: defaultSurfaceProps.brightness,
                   contrast: defaultSurfaceProps.contrast,
@@ -354,7 +403,7 @@ export const useSurfaceStore = create<SurfaceState>()(
             id: newId,
             name: `Surface ${next}`,
             // Nudge corners slightly so the clone is visually distinct
-            corners: src.corners.map((c) => ({ x: c.x + 0.15, y: c.y - 0.15 })) as Surface['corners'],
+            corners: src.corners.map((c) => ({ ...c, x: c.x + 0.15, y: c.y - 0.15 })),
           }
           const idx = state.surfaces.findIndex((s) => s.id === id)
           const arr = [...state.surfaces]

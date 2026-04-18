@@ -68,11 +68,14 @@ export function transitionToScene(targetSurfaces: Surface[], durationMs: number)
       // Start with target for all non-numeric / non-corner props
       const result: Surface = { ...target }
 
-      // Lerp corners
-      result.corners = target.corners.map((tc, i) => ({
-        x: lerp(from.corners[i].x, tc.x, eased),
-        y: lerp(from.corners[i].y, tc.y, eased),
-      })) as Surface['corners']
+      // Lerp corners — only when both surfaces have the same count
+      if (from.corners.length === target.corners.length) {
+        result.corners = target.corners.map((tc, i) => ({
+          ...tc,
+          x: lerp(from.corners[i].x, tc.x, eased),
+          y: lerp(from.corners[i].y, tc.y, eased),
+        }))
+      }
 
       // Lerp numeric FX props
       for (const prop of LERP_PROPS) {

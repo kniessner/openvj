@@ -27,10 +27,9 @@ function formatTime(s: number): string {
 
 // ─── Three.js scene ───────────────────────────────────────────────────────────
 
-function Scene() {
+function Scene({ presentMode = false }: { presentMode?: boolean }) {
   const { surfaces, isDraggingCorner } = useSurfaceStore()
 
-  // Tick textures + audio engine once per frame
   useFrame(() => {
     assetTextureManager.tickAll()
     audioEngine.tick()
@@ -40,15 +39,17 @@ function Scene() {
     <>
       <ambientLight intensity={0.3} />
       <pointLight position={[10, 10, 10]} intensity={0.5} />
-      {surfaces.map((s) => <SurfaceMesh key={s.id} surface={s} />)}
-      <Grid
-        args={[30, 30]}
-        cellSize={1} cellThickness={0.4} cellColor="#1f2937"
-        sectionSize={5} sectionThickness={0.8} sectionColor="#374151"
-        fadeDistance={20} fadeStrength={1.5}
-        infiniteGrid position={[0, 0, -0.01]}
-      />
-      <OrbitControls makeDefault enableDamping dampingFactor={0.06} enabled={!isDraggingCorner} />
+      {surfaces.map((s) => <SurfaceMesh key={s.id} surface={s} presentMode={presentMode} />)}
+      {!presentMode && (
+        <Grid
+          args={[30, 30]}
+          cellSize={1} cellThickness={0.4} cellColor="#1f2937"
+          sectionSize={5} sectionThickness={0.8} sectionColor="#374151"
+          fadeDistance={20} fadeStrength={1.5}
+          infiniteGrid position={[0, 0, -0.01]}
+        />
+      )}
+      <OrbitControls makeDefault enableDamping dampingFactor={0.06} enabled={!isDraggingCorner && !presentMode} />
     </>
   )
 }
@@ -498,8 +499,9 @@ function MidiControls() {
   const [panelOpen, setPanelOpen] = useState(false)
   const [inputNames, setInputNames] = useState<string[]>([])
 
-  const { bindings, learning, removeBinding, setLearning, clearAll } = useMidiStore()
+  const { bindings, learning, removeBinding, setLearning, noteBindings, learningNote, removeNoteBinding, setLearningNote, clearAll } = useMidiStore()
   const { activeSurfaceId, updateSurfaceProps } = useSurfaceStore()
+  const { scenes } = useSceneStore()
 
   // Start / stop MIDI
   const toggle = async () => {
@@ -547,14 +549,36 @@ function MidiControls() {
     return unsub
   }, [active])
 
+  // Bridge: Note-On → scene recall
+  useEffect(() => {
+    if (!active) return
+    const unsub = midiEngine.onNote((channel, note) => {
+      const { learningNote: lrn, addNoteBinding: add } = useMidiStore.getState()
+      if (lrn !== null) {
+        add({ channel, note, sceneId: lrn })
+        return
+      }
+      const { noteBindings: nbs } = useMidiStore.getState()
+      const nb = nbs.find((b) => b.channel === channel && b.note === note)
+      if (!nb) return
+      const scene = useSceneStore.getState().scenes.find((s) => s.id === nb.sceneId)
+      if (!scene) return
+      const duration = 500 // default transition
+      transitionToScene(scene.surfaces, duration)
+      useSceneStore.getState().setActiveScene(scene.id)
+    })
+    return unsub
+  }, [active])
+
   // Refresh input list when panel opens
   useEffect(() => {
     if (panelOpen && active) setInputNames(midiEngine.inputNames)
   }, [panelOpen, active])
 
-  // Suppress unused-var lint for destructured updateSurfaceProps (used via getState)
+  // Suppress unused-var lint for destructured values used via getState
   void updateSurfaceProps
   void activeSurfaceId
+  void scenes
 
   const ALL_TARGETS = Object.keys(MIDI_TARGET_LABELS) as MidiTarget[]
 
@@ -675,6 +699,47 @@ function MidiControls() {
                 )
               })}
             </div>
+
+            {/* Note → Scene bindings */}
+            {scenes.length > 0 && (
+              <div className="border-t border-gray-700/60 pt-2 space-y-1.5">
+                <p className="text-xs text-gray-500 font-medium">Note → Scene recall</p>
+                {scenes.map((scene) => {
+                  const nb = noteBindings.find((b) => b.sceneId === scene.id)
+                  const isLearning = learningNote === scene.id
+                  return (
+                    <div key={scene.id} className={`flex items-center gap-2 rounded-lg px-2 py-1 transition-colors ${
+                      isLearning ? 'bg-violet-900/40 border border-violet-500/50' : 'hover:bg-gray-800/60'
+                    }`}>
+                      <span className="flex-1 text-xs text-gray-400 truncate">{scene.name}</span>
+                      {nb ? (
+                        <span className="text-xs font-mono text-violet-300 flex-shrink-0">
+                          ch{nb.channel + 1} N{nb.note}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-700 flex-shrink-0">—</span>
+                      )}
+                      <button
+                        onClick={() => setLearningNote(isLearning ? null : scene.id)}
+                        className={`px-1.5 py-0.5 text-xs rounded transition-colors cursor-pointer flex-shrink-0 ${
+                          isLearning ? 'bg-violet-600 text-white animate-pulse' : 'bg-gray-800 text-gray-500 hover:text-gray-200 hover:bg-gray-700'
+                        }`}
+                      >
+                        {isLearning ? 'listening…' : 'learn'}
+                      </button>
+                      {nb && !isLearning && (
+                        <button onClick={() => removeNoteBinding(scene.id)}
+                          className="p-0.5 text-gray-700 hover:text-red-400 cursor-pointer rounded transition-colors">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
 
             {/* Footer actions */}
             <div className="flex gap-2 pt-1 border-t border-gray-700/60">
@@ -869,6 +934,35 @@ function ScenesPanel({ collapsed, onToggle, onSaveScene }: ScenesPanelProps) {
   )
 }
 
+// ─── Snap grid control ────────────────────────────────────────────────────────
+
+function SnapControls() {
+  const { snapGrid, setSnapGrid } = useSurfaceStore()
+  const SNAPS = [0, 0.25, 0.5, 1] as const
+
+  return (
+    <div className="absolute top-3 left-3 flex items-center gap-1 z-10">
+      <div className="flex items-center bg-gray-900/70 backdrop-blur-sm border border-gray-700/50 rounded-lg overflow-hidden">
+        <span className="text-xs text-gray-600 px-2 select-none">Snap</span>
+        {SNAPS.map((s) => (
+          <button
+            key={s}
+            onClick={() => setSnapGrid(s)}
+            className={`px-2 py-1 text-xs transition-colors cursor-pointer ${
+              snapGrid === s
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-500 hover:text-gray-200 hover:bg-gray-700/60'
+            }`}
+            title={s === 0 ? 'No snapping' : `Snap to ${s} world units`}
+          >
+            {s === 0 ? 'Off' : s}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── Output window ────────────────────────────────────────────────────────────
 // Rendered when ?mode=output — clean canvas with no UI chrome.
 // State stays in sync via localStorage storage events from the main window.
@@ -899,7 +993,7 @@ function OutputWindow() {
         style={{ background: '#000000', width: '100%', height: '100%' }}
         gl={{ preserveDrawingBuffer: false }}
       >
-        <Scene />
+        <Scene presentMode />
       </Canvas>
     </div>
   )
@@ -1015,7 +1109,8 @@ export default function App() {
     const onChange = () => {
       const isFs = !!document.fullscreenElement
       setPresenting(isFs)
-      if (isFs) showHud()
+      useSurfaceStore.getState().setIsPresenting(isFs)
+      if (isFs) { showHud(); useSurfaceStore.getState().setActiveSurface(null) }
     }
     document.addEventListener('fullscreenchange', onChange)
     return () => document.removeEventListener('fullscreenchange', onChange)
@@ -1280,7 +1375,7 @@ export default function App() {
             gl={{ preserveDrawingBuffer: true }}
             onCreated={({ gl }) => { glCanvasRef.current = gl.domElement }}
           >
-            <Scene />
+            <Scene presentMode={presenting} />
           </Canvas>
 
           {/* ── Hint overlay (dismissible, hides when not needed) ── */}
@@ -1302,6 +1397,9 @@ export default function App() {
               </div>
             </div>
           )}
+
+          {/* ── Snap grid toggle (top-left, only when not presenting) ── */}
+          {!presenting && <SnapControls />}
 
           {/* ── Video live badge ── */}
           {activeVideoEl && !activeVideoEl.paused && !presenting && (

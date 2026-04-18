@@ -1,20 +1,13 @@
 import * as THREE from 'three'
 import type { BlendMode, MaskShape } from '../stores/surfaceStore'
 
+// Vertices are positioned directly in world space by the polygon geometry.
+// UVs are baked into the BufferGeometry attributes.
 const vertexShader = `
   varying vec2 vUv;
-  uniform vec2 uCorners[4];
-
-  vec2 bilinearUV(vec2 uv) {
-    vec2 top    = mix(uCorners[0], uCorners[1], uv.x);
-    vec2 bottom = mix(uCorners[3], uCorners[2], uv.x);
-    return mix(bottom, top, uv.y);
-  }
-
   void main() {
     vUv = uv;
-    vec2 wp = bilinearUV(uv);
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(wp.x, wp.y, position.z, 1.0);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `
 
@@ -235,15 +228,7 @@ export class ProjectedMaterial extends THREE.ShaderMaterial {
         uTint:       { value: tint },
         uBrightness: { value: brightness },
         uContrast:   { value: contrast },
-        uCorners: {
-          value: [
-            new THREE.Vector2(-2,  2),
-            new THREE.Vector2( 2,  2),
-            new THREE.Vector2( 2, -2),
-            new THREE.Vector2(-2, -2),
-          ],
-        },
-        uTime:       { value: 0 },
+        uTime:            { value: 0 },
         // Color FX
         uHue:        { value: 0 },
         uSaturation: { value: 1 },
@@ -280,11 +265,6 @@ export class ProjectedMaterial extends THREE.ShaderMaterial {
     })
   }
 
-  setCorners(corners: { x: number; y: number }[]) {
-    if (corners.length >= 4) {
-      this.uniforms.uCorners.value = corners.slice(0, 4).map(c => new THREE.Vector2(c.x, c.y))
-    }
-  }
   setTexture(texture: THREE.Texture) { this.uniforms.uTexture.value = texture; texture.needsUpdate = true }
   setOpacity(v: number)    { this.uniforms.uOpacity.value    = v }
   setBrightness(v: number) { this.uniforms.uBrightness.value = v }

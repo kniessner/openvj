@@ -7,7 +7,7 @@ import {
   ShaderMaterial,
   WebGLRenderer,
 } from 'three'
-import { useSurfaceStore, Surface, Corner, MaskShape } from '../stores/surfaceStore'
+import { useSurfaceStore, Surface, Corner, MaskShape, defaultUVForIndex } from '../stores/surfaceStore'
 import { assetTextureManager } from '../lib/assetTextureManager'
 import { ProjectedMaterial } from '../shaders/ProjectedMaterial'
 
@@ -158,7 +158,7 @@ function PresetPicker({ onClose }: PresetPickerProps) {
     const newSurfaces: Surface[] = preset.surfaces.map((ps) => ({
       id: genId(),
       name: ps.name,
-      corners: ps.corners.map(([x, y]) => ({ x, y })) as [Corner, Corner, Corner, Corner],
+      corners: ps.corners.map(([x, y], i) => ({ x, y, ...defaultUVForIndex(i, ps.corners.length) })) as Corner[],
       visible: true,
       locked: false,
       opacity: 0.95,
@@ -378,11 +378,10 @@ function SurfaceShaderEditor({ surface, onClose }: SurfaceShaderEditorProps) {
           customShader: code.trim() || null,
           texture: texture ?? undefined,
         })
-        mat.setCorners([{ x: -1, y: 1 }, { x: 1, y: 1 }, { x: 1, y: -1 }, { x: -1, y: -1 }])
         mat.tick(performance.now() / 1000)
         const cam = new OrthographicCamera(-1, 1, 1, -1, 0, 1)
         const scene = new Scene()
-        const geo = new PlaneGeometry(1, 1, 4, 4)
+        const geo = new PlaneGeometry(2, 2, 4, 4)
         scene.add(new Mesh(geo, mat))
         renderer.render(scene, cam)
         geo.dispose()
@@ -749,7 +748,7 @@ function Slider({ label, value, min, max, step = 0.01, displayValue, onChange, d
 
 // ─── Corner Nudge ────────────────────────────────────────────────────────────
 
-const CORNER_NAMES = ['Top Left', 'Top Right', 'Bottom Right', 'Bottom Left'] as const
+const QUAD_CORNER_NAMES = ['Top Left', 'Top Right', 'Bottom Right', 'Bottom Left']
 
 interface CornerNudgeProps {
   surface: Surface
@@ -757,17 +756,33 @@ interface CornerNudgeProps {
 }
 
 function CornerNudge({ surface, disabled }: CornerNudgeProps) {
-  const { updateCorner } = useSurfaceStore()
+  const { updateCorner, removeCorner } = useSurfaceStore()
+  const N = surface.corners.length
   const nudge = (index: number, axis: 'x' | 'y', delta: number) => {
     const c = surface.corners[index]
     updateCorner(surface.id, index, { ...c, [axis]: c[axis] + delta })
   }
 
+  const label = (i: number) =>
+    N === 4 ? QUAD_CORNER_NAMES[i] : `Corner ${i + 1}`
+
   return (
     <div className="space-y-2">
       {surface.corners.map((corner, i) => (
         <div key={i} className="space-y-1">
-          <span className="text-xs text-gray-500">{CORNER_NAMES[i]}</span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">{label(i)}</span>
+            {N > 3 && (
+              <button
+                disabled={disabled}
+                onClick={() => removeCorner(surface.id, i)}
+                className="text-xs text-gray-600 hover:text-red-400 transition-colors cursor-pointer disabled:opacity-40 px-1"
+                title="Remove corner"
+              >
+                ✕
+              </button>
+            )}
+          </div>
           <div className="flex gap-1.5">
             <input
               type="number"
@@ -791,14 +806,14 @@ function CornerNudge({ surface, disabled }: CornerNudgeProps) {
             />
             <div className="flex gap-0.5 ml-auto">
               {([['←', 'x', -0.05], ['→', 'x', 0.05], ['↓', 'y', -0.05], ['↑', 'y', 0.05]] as const).map(
-                ([label, axis, delta]) => (
+                ([lbl, axis, delta]) => (
                   <button
-                    key={label}
+                    key={lbl}
                     disabled={disabled}
                     onClick={() => nudge(i, axis, delta)}
                     className="w-6 h-6 bg-gray-800 hover:bg-gray-600 rounded text-xs text-gray-300 transition-colors disabled:opacity-40 cursor-pointer"
                   >
-                    {label}
+                    {lbl}
                   </button>
                 )
               )}
