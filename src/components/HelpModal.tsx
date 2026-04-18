@@ -32,11 +32,16 @@ function OverviewContent() {
     <div className="space-y-6">
       <Section title="Quick Start">
         <ol className="space-y-2 text-xs text-gray-400 list-decimal list-inside">
-          <li>Click <strong className="text-gray-200">Add</strong> in the Surfaces panel to create a mapping surface</li>
+          <li>Click <strong className="text-gray-200">+ Add Surface</strong> in the Surfaces panel to create a mapping surface</li>
           <li>Click the surface in the viewport to select it — blue outline and red corner handles appear</li>
           <li>Drag the handles to warp the quad to match your projection target</li>
-          <li>In the <strong className="text-gray-200">Media</strong> panel, drag a video/image file in or click a built-in shader</li>
-          <li>Click the asset card to assign it to the selected surface</li>
+          <li>Assign content in one of three ways:
+            <ul className="mt-1 space-y-1 list-disc list-inside pl-4">
+              <li><strong className="text-blue-400">Media</strong> panel — drag video/image files or click built-in shaders</li>
+              <li><strong className="text-orange-400">p5.js</strong> panel — code generative art, then click the ⛶ icon to assign to the selected surface</li>
+              <li>Or select from any asset in the Media panel and click to assign</li>
+            </ul>
+          </li>
           <li>Press <KbdKey>F</KbdKey> to enter fullscreen presentation mode</li>
         </ol>
       </Section>
@@ -44,7 +49,8 @@ function OverviewContent() {
       <Section title="Panels">
         <div className="grid grid-cols-2 gap-2 text-xs">
           {[
-            { name: 'Media',      desc: 'Import and manage visual assets — video, images, shaders, Uji generators, webcam, screen capture. Drag files directly onto the panel.' },
+            { name: 'Media',      desc: 'Import visual assets — video, images, shaders, Uji generators, webcam, screen capture. Drag files directly onto the panel.' },
+            { name: 'p5.js',      desc: 'Live code generative art sketches with audio/MIDI reactivity. 5 templates included. Click ⛶ to assign to selected surface.' },
             { name: 'Surfaces',   desc: 'Add, reorder (drag rows), show/hide, lock, and delete surfaces. Select a surface to open the Inspector.' },
             { name: 'Inspector',  desc: 'Adjust all surface properties: opacity, FX sliders, blend mode, flip/rotate/zoom, distortion, and per-surface custom shader.' },
             { name: 'Scenes',     desc: 'Save named snapshots of the entire surface layout with canvas thumbnails. Click a scene to restore it instantly.' },
@@ -65,6 +71,7 @@ function OverviewContent() {
             ['Image',   'PNG, JPG, GIF, WebP — animated GIFs loop automatically.'],
             ['Shader',  'Standalone GLSL fragment shaders — write manually or generate with AI.'],
             ['Uji',     'Procedural line-art generator with 6 visual presets and AI-editable shader.'],
+            ['p5.js',   'Live-programmed generative art with audio-reactive OpenVJ Bridge API.'],
             ['Webcam',  'Live camera feed — requires browser permission.'],
             ['Screen',  'Capture any window or display via browser API.'],
           ].map(([type, desc]) => (
@@ -424,10 +431,139 @@ function MidiContent() {
   )
 }
 
+function P5JsContent() {
+  return (
+    <div className="space-y-6">
+      <Section title="Quick Start">
+        <ol className="space-y-2 text-xs text-gray-400 list-decimal list-inside">
+          <li>Open the <strong className="text-gray-200">p5.js Creative Coding</strong> panel in the sidebar</li>
+          <li>Click <strong className="text-gray-200">New Sketch</strong> or <strong className="text-gray-200">Templates</strong> to start from a preset</li>
+          <li>Click the <strong className="text-gray-200">edit icon</strong> on a sketch to open the full code editor</li>
+          <li>Write p5.js code — changes apply automatically (with debounce)</li>
+          <li>Press <KbdKey>Ctrl+Enter</KbdKey> to force-run your code immediately</li>
+          <li>Enable microphone (🎤 icon) to make sketches audio-reactive</li>
+        </ol>
+      </Section>
+
+      <Section title="How to Apply p5.js to a Surface">
+        <div className="text-xs text-gray-400 space-y-2">
+          <p>p5.js sketches do <strong>not</strong> appear in the Media panel. Instead:</p>
+          <ol className="space-y-1.5 list-decimal list-inside">
+            <li>Create or select an existing <strong className="text-gray-200">surface</strong> in the Surfaces panel</li>
+            <li>Toggle the p5.js sketch's <strong className="text-gray-200">play icon</strong> to start rendering</li>
+            <li>The sketch automatically renders as a texture on the selected surface at its configured size</li>
+            <li>Use the <strong className="text-gray-200">opacity slider</strong> and <strong className="text-gray-200">blend mode</strong> in the p5.js panel to layer effects</li>
+            <li>Multiple sketches can run simultaneously — each appears on its assigned surface</li>
+          </ol>
+        </div>
+      </Section>
+
+      <Section title="OpenVJ Bridge API">
+        <div className="text-xs text-gray-400 space-y-2">
+          <p>Access OpenVJ's audio and MIDI data directly in your sketches via the <Mono>openvj</Mono> global object:</p>
+        </div>
+        <div className="bg-gray-950 rounded-lg p-3 font-mono text-xs space-y-1 border border-gray-800 mt-3">
+          {[
+            ['openvj.audio.getLow()',   '0–255  Bass energy (20–300 Hz)'],
+            ['openvj.audio.getMid()',   '0–255  Mid energy (300–4 kHz)'],
+            ['openvj.audio.getHigh()',  '0–255  High energy (4–20 kHz)'],
+            ['openvj.audio.getBeat()',  '0–1    Beat pulse, decays after kick'],
+            ['openvj.audio.getBPM()',   'float  Detected tempo (0 = not set)'],
+            ['openvj.midi.getCC(n)',    '0–1    MIDI CC value, n = 0-127'],
+          ].map(([fn, desc]) => (
+            <div key={fn} className="flex gap-3 items-baseline">
+              <span className="text-pink-400 w-48 flex-shrink-0">{fn}</span>
+              <span className="text-gray-500">{desc}</span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Audio-Reactive Sketch Example">
+        <pre className="bg-gray-950 rounded-lg p-3 font-mono text-xs text-green-300 leading-relaxed overflow-x-auto border border-gray-800">{`function setup() {
+  createCanvas(512, 512);
+  colorMode(HSB);
+}
+
+function draw() {
+  // Clear on beat
+  if (openvj.audio.getBeat() > 0.5) {
+    background(0);
+  } else {
+    background(0, 0, 10);
+  }
+  
+  // Scale with bass
+  const bass = openvj.audio.getLow() / 255;
+  fill(200, 80, 100);
+  noStroke();
+  circle(width/2, height/2, 100 + bass * 200);
+  
+  // Rotate with MIDI
+  translate(width/2, height/2);
+  rotate(openvj.midi.getCC(1) * TWO_PI);
+  stroke(255);
+  line(0, 0, 100, 0);
+}`}</pre>
+      </Section>
+
+      <Section title="Templates">
+        <div className="space-y-2 text-xs text-gray-400">
+          <p>Five built-in templates to jump-start your creativity:</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 mt-2">
+          {[
+            ['Audio Waveform', 'Frequency bars visualization with audio-reactive coloring'],
+            ['Particles', 'Particle system that responds to beat and bass'],
+            ['Kaleidoscope', 'Mirror symmetry patterns with rotation control'],
+            ['Neon Grid', 'Cyberpunk-style grid with scrolling effects'],
+            ['Liquid Flow', 'Perlin noise fluid simulation'],
+          ].map(([name, desc]) => (
+            <div key={name} className="bg-gray-800/50 rounded p-2 border border-gray-700/50">
+              <p className="text-gray-200 font-medium text-xs">{name}</p>
+              <p className="text-gray-500 text-[10px]">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Tips">
+        <ul className="text-xs text-gray-400 space-y-1.5 list-disc list-inside">
+          <li>Start with a <strong className="text-gray-200">template</strong> then modify the code — faster than writing from scratch</li>
+          <li>Use <Mono>colorMode(HSB)</Mono> for smoother color transitions with audio values</li>
+          <li><Mono>ADD</Mono> blend mode is great for glowing/light effects with p5.js</li>
+          <li>Keep particle counts under 500 for 60fps on most GPUs</li>
+          <li>Use <Mono>push()</Mono>/<Mono>pop()</Mono> to save/restore the drawing state before transforms</li>
+          <li>Sketches run independently in "instance mode" — no global p5 conflicts</li>
+          <li>Export sketches as JSON to back them up or share with others</li>
+        </ul>
+      </Section>
+
+      <Section title="Editor Shortcuts">
+        <table className="w-full text-xs">
+          <tbody>
+            {[
+              ['Ctrl+Enter', 'Force-run current code immediately'],
+              ['Ctrl+S', 'Save (same as run)'],
+              ['Tab', 'Insert 2 spaces'],
+              ['Ctrl+/', 'Toggle comment (coming soon)'],
+            ].map(([key, action]) => (
+              <tr key={key} className="border-t border-gray-800 first:border-0">
+                <td className="py-2 pr-6 whitespace-nowrap"><KbdKey>{key}</KbdKey></td>
+                <td className="py-2 text-gray-400">{action}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Section>
+    </div>
+  )
+}
+
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-type Tab = 'Overview' | 'Controls' | 'Shaders' | 'Audio' | 'MIDI'
-const TABS: Tab[] = ['Overview', 'Controls', 'Shaders', 'Audio', 'MIDI']
+type Tab = 'Overview' | 'Controls' | 'Shaders' | 'p5.js' | 'Audio' | 'MIDI'
+const TABS: Tab[] = ['Overview', 'Controls', 'Shaders', 'p5.js', 'Audio', 'MIDI']
 
 interface HelpModalProps {
   onClose: () => void
@@ -490,6 +626,7 @@ export function HelpModal({ onClose }: HelpModalProps) {
           {tab === 'Overview' && <OverviewContent />}
           {tab === 'Controls' && <ControlsContent />}
           {tab === 'Shaders'  && <ShadersContent />}
+          {tab === 'p5.js'    && <P5JsContent />}
           {tab === 'Audio'    && <AudioContent />}
           {tab === 'MIDI'     && <MidiContent />}
         </div>

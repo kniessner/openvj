@@ -6,7 +6,8 @@
 
 import React, { useState } from 'react';
 import { useP5JsStore } from '../stores/p5jsStore';
-import { P5JsEditor } from './P5JsEditor';
+import { useSurfaceStore } from '../stores/surfaceStore';
+import { P5JsEditorModal } from './P5JsEditorModal';
 
 interface P5JsPanelProps {
   collapsed: boolean;
@@ -26,8 +27,17 @@ export const P5JsPanel: React.FC<P5JsPanelProps> = ({ collapsed, onToggle }) => 
     setLayerOpacity,
   } = useP5JsStore();
 
+  const { activeSurfaceId, updateSurface } = useSurfaceStore();
+
   const [showTemplates, setShowTemplates] = useState(false);
-  const [editingLayer, setEditingLayer] = useState<string | null>(null);
+  const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
+
+  // Assign p5.js layer to the active surface
+  const assignToSurface = (layerId: string) => {
+    if (activeSurfaceId) {
+      updateSurface(activeSurfaceId, { assetId: layerId });
+    }
+  };
 
   // Get blend mode color
   const getBlendModeColor = (mode: string) => {
@@ -40,6 +50,7 @@ export const P5JsPanel: React.FC<P5JsPanelProps> = ({ collapsed, onToggle }) => 
   };
 
   return (
+    <>
     <div className="flex flex-col overflow-hidden flex-shrink-0 border-t border-gray-700/60">
       {/* Header */}
       <button
@@ -108,6 +119,18 @@ export const P5JsPanel: React.FC<P5JsPanelProps> = ({ collapsed, onToggle }) => 
             </div>
           )}
 
+          {/* No surface selected warning */}
+          {!activeSurfaceId && (
+            <div className="px-3 py-2 bg-yellow-900/20 border-b border-yellow-800/30">
+              <p className="text-[10px] text-yellow-600 flex items-center gap-1.5">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                Select a surface to assign sketches to it
+              </p>
+            </div>
+          )}
+
           {/* Layer list */}
           <div className="flex-1 overflow-y-auto min-h-0 py-1">
             {layers.length === 0 && (
@@ -155,18 +178,35 @@ export const P5JsPanel: React.FC<P5JsPanelProps> = ({ collapsed, onToggle }) => 
                     {layer.blendMode === 'NORMAL' ? 'N' : layer.blendMode[0]}
                   </span>
 
-                  {/* Edit button */}
+                  {/* Assign to surface button */}
+                  <button
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      assignToSurface(layer.id);
+                    }}
+                    className={`p-1 rounded transition-colors ${
+                      activeSurfaceId 
+                        ? 'text-gray-600 hover:text-green-400 hover:bg-gray-700' 
+                        : 'text-gray-700 cursor-not-allowed'
+                    }`}
+                    title={activeSurfaceId ? "Assign to selected surface" : "Select a surface first"}
+                    disabled={!activeSurfaceId}
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                        d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                    </svg>
+                  </button>
+
+                  {/* Edit button - opens modal */}
                   <button
                     onClick={(e) => { 
                       e.stopPropagation(); 
                       setActiveLayer(layer.id);
-                      setEditingLayer(editingLayer === layer.id ? null : layer.id);
+                      setEditingLayerId(layer.id);
                     }}
-                    className={`p-1 rounded transition-colors ${
-                      editingLayer === layer.id 
-                        ? 'bg-blue-600 text-white' 
-                        : 'text-gray-600 hover:text-gray-300 hover:bg-gray-700'
-                    }`}
+                    className="p-1 rounded transition-colors text-gray-600 hover:text-blue-400 hover:bg-gray-700"
+                    title="Open full editor"
                   >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
@@ -204,26 +244,26 @@ export const P5JsPanel: React.FC<P5JsPanelProps> = ({ collapsed, onToggle }) => 
                     </span>
                   </div>
                 )}
-
-                {/* Inline editor */}
-                {editingLayer === layer.id && (
-                  <div className="mt-1 border border-gray-700 rounded bg-gray-900">
-                    <div className="h-48">
-                      <P5JsEditor />
-                    </div>
-                  </div>
-                )}
               </div>
             ))}
           </div>
 
           {/* Info footer */}
-          <div className="px-3 py-1.5 border-t border-gray-700/60 text-[10px] text-gray-600">
-            <p>Use openvj.audio.getLow() / getMid() / getHigh() / getBeat()</p>
-            <p>Use openvj.midi.getCC(n) for MIDI control</p>
+          <div className="px-3 py-1.5 border-t border-gray-700/60 text-[10px] text-gray-600 space-y-0.5">
+            <p>📌 Select a surface, then click <span className="text-green-500">⛶</span> to assign sketch</p>
+            <p>🎵 Use openvj.audio.getLow() / getMid() / getHigh() / getBeat()</p>
+            <p>🎹 Use openvj.midi.getCC(n) for MIDI control</p>
           </div>
         </div>
       )}
     </div>
+
+    {/* Full-screen Editor Modal */}
+    <P5JsEditorModal
+      isOpen={editingLayerId !== null}
+      onClose={() => setEditingLayerId(null)}
+      layerId={editingLayerId}
+    />
+    </>
   );
 };
