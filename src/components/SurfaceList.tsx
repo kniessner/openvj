@@ -7,7 +7,7 @@ import {
   ShaderMaterial,
   WebGLRenderer,
 } from 'three'
-import { useSurfaceStore, Surface, Corner } from '../stores/surfaceStore'
+import { useSurfaceStore, Surface, Corner, MaskShape } from '../stores/surfaceStore'
 import { assetTextureManager } from '../lib/assetTextureManager'
 import { ProjectedMaterial } from '../shaders/ProjectedMaterial'
 
@@ -178,7 +178,14 @@ function PresetPicker({ onClose }: PresetPickerProps) {
       chromaAb: 0,
       pixelate: 0,
       vignette: 0,
+      chromaKey: false,
+      chromaColor: [0, 1, 0] as [number, number, number],
+      chromaThreshold: 0.3,
+      chromaSoftness: 0.1,
       customShader: null,
+      maskShape: 'none' as MaskShape,
+      maskSoftness: 0.02,
+      maskInvert: false,
     }))
     importConfig(newSurfaces)
     setActiveSurface(newSurfaces[0].id)
@@ -816,6 +823,7 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
   const [colorOpen, setColorOpen] = useState(false)
   const [transformOpen, setTransformOpen] = useState(false)
   const [fxOpen, setFxOpen] = useState(false)
+  const [maskOpen, setMaskOpen] = useState(false)
 
   const update = useCallback(
     (props: Parameters<typeof updateSurfaceProps>[1]) => updateSurfaceProps(surface.id, props),
@@ -835,9 +843,14 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
   const pixelate   = surface.pixelate   ?? 0
   const vignette   = surface.vignette   ?? 0
 
-  const hasFx  = warpAmp > 0 || chromaAb > 0 || pixelate > 0 || vignette > 0
-  const hasClr = hue !== 0 || saturation !== 1 || invert
-  const hasTfm = flipH || flipV || rotation !== 0 || zoom !== 1
+  const maskShape    = surface.maskShape    ?? 'none'
+  const maskSoftness = surface.maskSoftness ?? 0.02
+  const maskInvert   = surface.maskInvert   ?? false
+
+  const hasFx   = warpAmp > 0 || chromaAb > 0 || pixelate > 0 || vignette > 0
+  const hasClr  = hue !== 0 || saturation !== 1 || invert
+  const hasTfm  = flipH || flipV || rotation !== 0 || zoom !== 1
+  const hasMask = maskShape !== 'none'
 
   return (
     <div className="border-t border-gray-700 flex flex-col overflow-hidden" style={{ minHeight: 0, maxHeight: '60vh' }}>
@@ -987,6 +1000,129 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
           )}
         </div>
 
+        {/* ── Mask ── */}
+        <div className="border-b border-gray-800/60">
+          <button
+            onClick={() => setMaskOpen(o => !o)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
+          >
+            <IconChevron open={maskOpen} />
+            <span className="uppercase tracking-wider font-medium">Mask</span>
+            {hasMask && <span className="ml-auto w-1.5 h-1.5 bg-amber-400 rounded-full" />}
+          </button>
+          {maskOpen && (
+            <div className="px-3 pb-3 space-y-3">
+              {/* Shape picker */}
+              <div className="space-y-1.5">
+                <span className="text-xs text-gray-400">Shape</span>
+                <div className="grid grid-cols-4 gap-1">
+                  {([
+                    { id: 'none',     label: 'None',    icon: '○' },
+                    { id: 'ellipse',  label: 'Ellipse', icon: '⬤' },
+                    { id: 'triangle', label: 'Tri',     icon: '▲' },
+                    { id: 'diamond',  label: 'Diamond', icon: '◆' },
+                    { id: 'top',      label: 'Top',     icon: '▀' },
+                    { id: 'bottom',   label: 'Bot',     icon: '▄' },
+                    { id: 'left',     label: 'Left',    icon: '◧' },
+                    { id: 'right',    label: 'Right',   icon: '◨' },
+                  ] as { id: MaskShape; label: string; icon: string }[]).map(({ id, label, icon }) => (
+                    <button
+                      key={id}
+                      onClick={() => update({ maskShape: id })}
+                      disabled={surface.locked}
+                      title={label}
+                      className={`py-1 text-xs rounded transition-colors cursor-pointer disabled:opacity-40 flex flex-col items-center gap-0.5 ${
+                        maskShape === id
+                          ? 'bg-amber-600/80 text-white'
+                          : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                      }`}
+                    >
+                      <span className="text-base leading-none">{icon}</span>
+                      <span className="text-[9px] leading-none">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {maskShape !== 'none' && (
+                <>
+                  <Slider
+                    label="Softness"
+                    value={maskSoftness}
+                    min={0}
+                    max={0.15}
+                    step={0.005}
+                    displayValue={maskSoftness === 0 ? 'Hard' : maskSoftness.toFixed(3)}
+                    onChange={(v) => update({ maskSoftness: v })}
+                    disabled={surface.locked}
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400">Invert</span>
+                    <button
+                      onClick={() => update({ maskInvert: !maskInvert })}
+                      disabled={surface.locked}
+                      className={`w-10 h-5 rounded-full transition-colors cursor-pointer disabled:opacity-40 relative ${maskInvert ? 'bg-amber-600' : 'bg-gray-700'}`}
+                    >
+                      <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${maskInvert ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Chroma Key ── */}
+        <div className="border-b border-gray-800/60">
+          <div className="flex items-center gap-2 px-3 py-2">
+            <button
+              onClick={() => update({ chromaKey: !surface.chromaKey })}
+              disabled={surface.locked}
+              className={`flex items-center gap-1.5 text-xs uppercase tracking-wider font-medium transition-colors cursor-pointer disabled:opacity-40 ${
+                surface.chromaKey ? 'text-green-400' : 'text-gray-400 hover:text-gray-200'
+              }`}
+              title="Toggle chroma key"
+            >
+              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${surface.chromaKey ? 'bg-green-400' : 'bg-gray-700'}`} />
+              Chroma Key
+            </button>
+            {surface.chromaKey && (
+              <div className="flex items-center gap-2 ml-auto">
+                {/* Color picker swatch */}
+                <label className="cursor-pointer" title="Pick key colour">
+                  <div
+                    className="w-5 h-5 rounded border border-gray-600"
+                    style={{
+                      background: `rgb(${Math.round((surface.chromaColor?.[0] ?? 0) * 255)},${Math.round((surface.chromaColor?.[1] ?? 1) * 255)},${Math.round((surface.chromaColor?.[2] ?? 0) * 255)})`,
+                    }}
+                  />
+                  <input
+                    type="color"
+                    className="hidden"
+                    value={`#${Math.round((surface.chromaColor?.[0] ?? 0) * 255).toString(16).padStart(2, '0')}${Math.round((surface.chromaColor?.[1] ?? 1) * 255).toString(16).padStart(2, '0')}${Math.round((surface.chromaColor?.[2] ?? 0) * 255).toString(16).padStart(2, '0')}`}
+                    onChange={(e) => {
+                      const hex = e.target.value
+                      const r = parseInt(hex.slice(1, 3), 16) / 255
+                      const g = parseInt(hex.slice(3, 5), 16) / 255
+                      const b = parseInt(hex.slice(5, 7), 16) / 255
+                      update({ chromaColor: [r, g, b] })
+                    }}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+          {surface.chromaKey && (
+            <div className="px-3 pb-3 space-y-2">
+              <Slider label="Threshold" value={surface.chromaThreshold ?? 0.3} min={0} max={1} step={0.01}
+                displayValue={(surface.chromaThreshold ?? 0.3).toFixed(2)}
+                onChange={(v) => update({ chromaThreshold: v })} disabled={surface.locked} />
+              <Slider label="Softness" value={surface.chromaSoftness ?? 0.1} min={0} max={0.5} step={0.01}
+                displayValue={(surface.chromaSoftness ?? 0.1).toFixed(2)}
+                onChange={(v) => update({ chromaSoftness: v })} disabled={surface.locked} />
+            </div>
+          )}
+        </div>
+
         {/* ── Corners ── */}
         <div className="border-b border-gray-800/60">
           <button
@@ -1065,7 +1201,7 @@ interface SurfaceItemProps {
 }
 
 function SurfaceItem({ surface, index, isActive, onSelect, onEditShader, onDragStart, onDragOver, onDrop, isDragTarget }: SurfaceItemProps) {
-  const { toggleVisibility, toggleLock, removeSurface, renameSurface } = useSurfaceStore()
+  const { toggleVisibility, toggleLock, removeSurface, renameSurface, cloneSurface } = useSurfaceStore()
   const [editing, setEditing] = useState(false)
   const [nameValue, setNameValue] = useState(surface.name)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -1177,6 +1313,16 @@ function SurfaceItem({ surface, index, isActive, onSelect, onEditShader, onDragS
           title={surface.locked ? 'Unlock' : 'Lock'}
         >
           <IconLock locked={surface.locked} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); cloneSurface(surface.id) }}
+          className="p-1 rounded text-gray-400 hover:text-blue-400 hover:bg-gray-600 transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+          title="Duplicate surface"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); removeSurface(surface.id) }}

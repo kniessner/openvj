@@ -7,6 +7,7 @@ export interface Corner {
 }
 
 export type BlendMode = 'normal' | 'add' | 'screen' | 'multiply'
+export type MaskShape = 'none' | 'ellipse' | 'triangle' | 'diamond' | 'top' | 'bottom' | 'left' | 'right'
 
 export interface Surface {
   id: string
@@ -34,8 +35,17 @@ export interface Surface {
   chromaAb: number     // 0 to 0.04, default 0
   pixelate: number     // 0=off, 4-256=grid count, default 0
   vignette: number     // 0 to 1, default 0
+  // Chroma key
+  chromaKey: boolean        // default false
+  chromaColor: [number, number, number]  // RGB 0-1, default [0, 1, 0] (green)
+  chromaThreshold: number   // 0 to 1, default 0.3
+  chromaSoftness: number    // 0 to 1, default 0.1
   // Custom post-process shader
   customShader: string | null  // default null
+  // Layer mask
+  maskShape: MaskShape         // default 'none'
+  maskSoftness: number         // 0 to 0.2, feather amount, default 0.02
+  maskInvert: boolean          // default false
 }
 
 interface SurfaceState {
@@ -43,6 +53,9 @@ interface SurfaceState {
   activeSurfaceId: string | null
   /** True while any corner handle is being dragged — use to disable OrbitControls */
   isDraggingCorner: boolean
+  /** Grid snap size in world units (0 = off) */
+  snapGrid: number
+  setSnapGrid: (v: number) => void
   /** Undo/redo history (not persisted) */
   _history: Surface[][]
   _future: Surface[][]
@@ -59,10 +72,11 @@ interface SurfaceState {
   renameSurface: (id: string, name: string) => void
   updateSurfaceProps: (
     id: string,
-    props: Partial<Pick<Surface, 'opacity' | 'brightness' | 'contrast' | 'blendMode' | 'hue' | 'saturation' | 'invert' | 'flipH' | 'flipV' | 'rotation' | 'zoom' | 'warpAmp' | 'warpFreq' | 'chromaAb' | 'pixelate' | 'vignette' | 'customShader'>>
+    props: Partial<Pick<Surface, 'opacity' | 'brightness' | 'contrast' | 'blendMode' | 'hue' | 'saturation' | 'invert' | 'flipH' | 'flipV' | 'rotation' | 'zoom' | 'warpAmp' | 'warpFreq' | 'chromaAb' | 'pixelate' | 'vignette' | 'chromaKey' | 'chromaColor' | 'chromaThreshold' | 'chromaSoftness' | 'customShader' | 'maskShape' | 'maskSoftness' | 'maskInvert'>>
   ) => void
   assignAsset: (surfaceId: string, assetId: string | null) => void
   reorderSurface: (fromIndex: number, toIndex: number) => void
+  cloneSurface: (id: string) => void
   importConfig: (config: Surface[]) => void
   exportConfig: () => Surface[]
 }
@@ -96,7 +110,14 @@ const defaultSurfaceProps = {
   chromaAb: 0,
   pixelate: 0,
   vignette: 0,
+  chromaKey: false,
+  chromaColor: [0, 1, 0] as [number, number, number],
+  chromaThreshold: 0.3,
+  chromaSoftness: 0.1,
   customShader: null,
+  maskShape: 'none' as MaskShape,
+  maskSoftness: 0.02,
+  maskInvert: false,
 }
 
 export const useSurfaceStore = create<SurfaceState>()(
@@ -137,6 +158,8 @@ export const useSurfaceStore = create<SurfaceState>()(
       ],
       activeSurfaceId: null,
       isDraggingCorner: false,
+      snapGrid: 0,
+      setSnapGrid: (v) => set({ snapGrid: v }),
       _history: [],
       _future: [],
 
@@ -200,18 +223,24 @@ export const useSurfaceStore = create<SurfaceState>()(
       },
 
       updateCorner: (surfaceId, cornerIndex, position) => {
-        set((state) => ({
-          surfaces: state.surfaces.map((surface) =>
-            surface.id === surfaceId
-              ? {
-                  ...surface,
-                  corners: surface.corners.map((corner, idx) =>
-                    idx === cornerIndex ? position : corner
-                  ) as [Corner, Corner, Corner, Corner],
-                }
-              : surface
-          ),
-        }))
+        set((state) => {
+          const snap = state.snapGrid
+          const snapped: Corner = snap > 0
+            ? { x: Math.round(position.x / snap) * snap, y: Math.round(position.y / snap) * snap }
+            : position
+          return {
+            surfaces: state.surfaces.map((surface) =>
+              surface.id === surfaceId
+                ? {
+                    ...surface,
+                    corners: surface.corners.map((corner, idx) =>
+                      idx === cornerIndex ? snapped : corner
+                    ) as [Corner, Corner, Corner, Corner],
+                  }
+                : surface
+            ),
+          }
+        })
       },
 
       setActiveSurface: (id) => set({ activeSurfaceId: id }),
@@ -261,6 +290,13 @@ export const useSurfaceStore = create<SurfaceState>()(
                   chromaAb: defaultSurfaceProps.chromaAb,
                   pixelate: defaultSurfaceProps.pixelate,
                   vignette: defaultSurfaceProps.vignette,
+                  chromaKey: defaultSurfaceProps.chromaKey,
+                  chromaColor: [...defaultSurfaceProps.chromaColor] as [number, number, number],
+                  chromaThreshold: defaultSurfaceProps.chromaThreshold,
+                  chromaSoftness: defaultSurfaceProps.chromaSoftness,
+                  maskShape: defaultSurfaceProps.maskShape,
+                  maskSoftness: defaultSurfaceProps.maskSoftness,
+                  maskInvert: defaultSurfaceProps.maskInvert,
                 }
               : surface
           ),
@@ -300,6 +336,30 @@ export const useSurfaceStore = create<SurfaceState>()(
           const [item] = arr.splice(fromIndex, 1)
           arr.splice(toIndex, 0, item)
           return { surfaces: arr }
+        })
+      },
+
+      cloneSurface: (id) => {
+        _pushHistory()
+        set((state) => {
+          const src = state.surfaces.find((s) => s.id === id)
+          if (!src) return {}
+          const newId = generateId()
+          const nums = state.surfaces
+            .map((s) => parseInt(s.name.replace('Surface ', '')))
+            .filter((n) => !isNaN(n))
+          const next = nums.length ? Math.max(...nums) + 1 : state.surfaces.length + 1
+          const clone: Surface = {
+            ...JSON.parse(JSON.stringify(src)),
+            id: newId,
+            name: `Surface ${next}`,
+            // Nudge corners slightly so the clone is visually distinct
+            corners: src.corners.map((c) => ({ x: c.x + 0.15, y: c.y - 0.15 })) as Surface['corners'],
+          }
+          const idx = state.surfaces.findIndex((s) => s.id === id)
+          const arr = [...state.surfaces]
+          arr.splice(idx + 1, 0, clone)
+          return { surfaces: arr, activeSurfaceId: newId }
         })
       },
 

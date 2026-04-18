@@ -1,7 +1,7 @@
 # OpenVJ Development Todo
 
-> 🎯 **Current Phase**: Phase 1 - Foundation (complete) → Phase 2
-> 📅 **Last Updated**: April 10, 2026
+> 🎯 **Current Phase**: Phase 2 — Sprint 8 (Layer Masks)
+> 📅 **Last Updated**: April 18, 2026
 
 ## ✅ Completed (Setup Phase)
 
@@ -12,457 +12,178 @@
 
 ---
 
-## 🚧 Phase 1: Foundation (Weeks 1-4)
+## ✅ Phase 1: Foundation — COMPLETE
 
-### Sprint 1: Three.js Setup (Week 1)
-**Goal**: Basic Three.js scene running
+### Sprint 1: Three.js Setup ✅ COMPLETE
+- [x] Vite + React + TypeScript project
+- [x] Three.js + @react-three/fiber + @react-three/drei
+- [x] Basic 3D scene with camera and controls
+- [x] Dark theme with Tailwind CSS
 
-- [ ] **1.1** Initialize Vite project with React
-  ```bash
-  npm create vite@latest openvj -- --template react-ts
-  cd openvj
-  npm install
-  ```
+### Sprint 2: Video Integration ✅ COMPLETE
+- [x] VideoManager singleton — load, play, pause, seek, stop
+- [x] HTMLVideoElement + THREE.VideoTexture
+- [x] MP4, WebM support
+- [x] Zustand video store
 
-- [ ] **1.2** Install Three.js dependencies
-  ```bash
-  npm install three @types/three
-  npm install @react-three/fiber @react-three/drei
-  ```
+### Sprint 3: Projection Mapping MVP ✅ COMPLETE
+- [x] ProjectedMaterial with bilinear UV warping
+- [x] Corner pin distortion (4 draggable handles)
+- [x] Real-time UV updates during drag
+- [x] Multiple independent surfaces
+- [x] Visibility toggle, lock, rename
+- [x] JSON save/load (localStorage + file)
 
-- [ ] **1.3** Create basic scene component
-  - [ ] Scene container
-  - [ ] Perspective camera
-  - [ ] OrbitControls for navigation
-  - [ ] Grid helper
-
-- [ ] **1.4** Set up multiple render targets structure
-  - [ ] Think about how to render to different displays
-  - [ ] Consider using offscreen canvas/FBO pattern
-
-- [ ] **1.5** Basic styling with Tailwind
-  - [ ] Install Tailwind
-  - [ ] Create dark theme base
-
-- [ ] **1.6** Initial commit
-  - [ ] Git init
-  - [ ] .gitignore for node_modules, dist
-  - [ ] First commit with message "Initial Three.js setup"
-
-**Deliverable**: Empty 3D scene running in browser
-
-### Sprint 2: Video Integration (Week 1-2) ✅ COMPLETED
-**Goal**: Play video on a 3D plane
-
-- [x] **2.1** Research video texture options — HTMLVideoElement + THREE.VideoTexture
-- [x] **2.2** VideoManager singleton (`src/lib/videoManager.ts`) — load, play, pause, seek, stop
-- [x] **2.3** Video controls — Play/Pause/Stop wired to actual HTMLVideoElement
-- [x] **2.4** Supported formats — MP4, WebM (anything the browser can decode)
-- [x] **2.5** Video state management — `src/stores/videoStore.ts` with Zustand
-
-**Deliverable**: ✅ Drag-and-drop video loads and plays on all surfaces
-**Files**: `stores/videoStore.ts`, `lib/videoManager.ts`
-
-### Sprint 3: Projection Mapping MVP (Week 2-3) ✅ COMPLETED
-**Goal**: Corner pin distortion working
-
-- [x] **3.1** Research projection mapping techniques
-  - [x] Homography matrices
-  - [x] Corner pin (quad warping)
-  - [x] Mesh-based warping
-
-- [x] **3.2** Create ProjectedMaterial
-  - [x] Custom shader material (`ProjectedMaterial.ts`)
-  - [x] UV coordinate transformation via bilinear interpolation
-  - [x] Brightness/contrast/tint uniforms
-  - [x] Reference: three-projected-material patterns
-
-- [x] **3.3** Quad surface with draggable corners
-  - [x] Visual corner handles (red spheres)
-  - [x] Drag to reposition in 3D space
-  - [x] Real-time UV updates on drag
-  - [x] Hover states and cursor feedback
-
-- [x] **3.4** Save/load mapping config
-  - [x] JSON format for mappings
-  - [x] Save to localStorage (Zustand persist)
-  - [x] Export to file (JSON download)
-  - [x] Import from file (file upload)
-
-- [x] **3.5** Multiple surfaces
-  - [x] Array of surfaces in Zustand store
-  - [x] Add/remove surfaces with UI
-  - [x] Select active surface (click to edit)
-  - [x] Visibility toggle per surface
-  - [x] Lock/unlock to prevent accidental edits
-
-**Deliverable**: ✅ Can map video to a quad, drag corners, save config
-**Files**: `stores/surfaceStore.ts`, `shaders/ProjectedMaterial.ts`, `components/Surface.tsx`, `components/SurfaceList.tsx`
-
-### Sprint 4: UI Foundation (Week 3-4) ✅ COMPLETED
-**Goal**: Functional but minimal UI
-
-- [x] **4.1** Layout — sidebar (media + surfaces + inspector) + canvas + transport bar
-- [x] **4.2** Media browser — functional drag-and-drop, file picker, loaded state with clear button
-- [x] **4.3** Surface inspector panel — Opacity/Brightness/Contrast sliders, corner nudges, reset; collapsible corners section
-- [x] **4.4** Timeline component — interactive scrubber (range input) with time display, seek-on-drag
-- [ ] **4.5** Preset system — deferred to Phase 3 (Sprint 12)
-
-**Deliverable**: ✅ Complete, polished UI for mapping video to surfaces
-**Files**: `App.tsx` (rewrite), `components/SurfaceList.tsx` (rewrite), `index.css` (updated)
-
-**UI Improvements (v0.3.0)**:
-- [x] Double-click surface name to rename inline
-- [x] Keyboard shortcuts: Space (play/pause), Esc (deselect surface)
-- [x] Global drag-and-drop overlay on the whole app
-- [x] Inspector: Opacity/Brightness/Contrast sliders with live preview
-- [x] Transport bar with green progress scrubber
-- [x] Compact surface list items with hover-revealed action buttons
-- [x] "Live" badge in canvas when video is playing
-- [x] Surface props (opacity/brightness/contrast) synced to shader each frame
+### Sprint 4: UI Foundation ✅ COMPLETE
+- [x] Sidebar layout (Media + Surfaces + Scenes)
+- [x] Media browser with drag-and-drop
+- [x] Surface inspector with all FX sliders
+- [x] Transport bar with scrubber
+- [x] Layout presets (Single, Diptych, Triptych, Quad, Stage, Cross, Hexagon, etc.)
+- [x] Undo/redo (50-state history)
+- [x] Keyboard shortcuts
 
 ---
 
-## 📋 Phase 2: Features (Weeks 5-8)
+## ✅ Phase 2: Features — Sprints 5–7 COMPLETE, Sprint 8 In Progress
 
-### Sprint 5: Effects System (Week 5)
+### Sprint 5: Effects System ✅ COMPLETE
+- [x] GLSL fragment shader pipeline (ProjectedMaterial.ts)
+- [x] Per-surface effects: brightness, contrast, hue, saturation, invert
+- [x] Distortion FX: wave warp, chromatic aberration, pixelate, vignette
+- [x] Blend modes: normal, add, screen, multiply
+- [x] Custom GLSL post-process per surface (applyFX function)
+- [x] AI-assisted shader generation (Anthropic API)
+- [x] Live shader editor with syntax highlighting + live preview
 
-- [ ] **5.1** GLSL shader pipeline architecture
-  - [ ] Fragment shader structure
-  - [ ] Uniform passing system
-  - [ ] Effect composition order
+### Sprint 6: Audio Reactivity ✅ COMPLETE
+- [x] Web Audio API + AnalyserNode (audioEngine.ts)
+- [x] 3-band FFT: low (20–300Hz), mid (300–4kHz), high (4k–20kHz)
+- [x] Beat detection with adjustable threshold
+- [x] BPM tap tempo
+- [x] Audio uniforms in shaders: uAudioLow, uAudioMid, uAudioHigh, uBeat, uBpm
+- [x] Visual level meters in UI
 
-- [ ] **5.2** Basic effects library
-  - [ ] Shader: Invert colors
-  - [ ] Shader: Grayscale
-  - [ ] Shader: Hue rotate
-  - [ ] Shader: Brightness/Contrast
+### Sprint 7: Content Sources ✅ COMPLETE
+- [x] Video files (MP4, WebM) with full playback controls
+- [x] Image files (JPG, PNG, animated GIF)
+- [x] Webcam input (getUserMedia)
+- [x] Screen capture (getDisplayMedia)
+- [x] Custom GLSL shaders as source
+- [x] Uji generative canvas source with audio modulation
+- [x] 20 built-in shader presets
 
-- [ ] **5.3** Blend modes
-  - [ ] Normal, Add, Multiply, Screen
-  - [ ] Overlay, Soft Light
-  - [ ] Custom blend shader
+### Sprint 8: Layer System 🚧 IN PROGRESS
 
-- [ ] **5.4** Effect chain UI
-  - [ ] Drag to reorder effects
-  - [ ] Toggle effects on/off
-  - [ ] Effect parameter sliders
+- [x] **8.1** Multi-layer architecture — surfaces act as independent layers with z-ordering
+  - [x] Surface list = layer stack with drag-to-reorder
+  - [x] Per-surface visibility, lock, blend mode
+  - [x] Clone/duplicate surfaces
+- [ ] **8.2** FBO-based compositing — render layers to off-screen textures
+  - [ ] Render each surface to its own FBO
+  - [ ] Final composite pass with global blend
+  - [ ] Performance: only re-render dirty layers
+- [ ] **8.3** Layer groups — group multiple surfaces together
+  - [ ] Group container with shared blend mode
+  - [ ] Expand/collapse groups in layer list
+- [x] **8.4** Layer masks — alpha mask shapes per surface ✅ DONE (April 18)
+  - [x] Mask shapes: ellipse, triangle, diamond, top/bottom/left/right half
+  - [x] Feathered edges (softness slider)
+  - [x] Invert mask toggle
+  - [x] Mask UI in Surface Inspector
 
-**Deliverable**: Apply effects to video layers
-
-### Sprint 6: Audio Reactivity (Week 6)
-
-- [ ] **6.1** Web Audio API setup
-  - [ ] AudioContext
-  - [ ] AnalyserNode
-  - [ ] Permission handling
-
-- [ ] **6.2** FFT Analysis
-  - [ ] Frequency data (FFT size: 256/512)
-  - [ ] Time domain data
-  - [ ] Smoothing
-
-- [ ] **6.3** Audio data store
-  - [ ] Frequency bins
-  - [ ] Overall volume
-  - [ ] Beat detection
-
-- [ ] **6.4** Audio-reactive uniforms
-  - [ ] Pass audio data to shaders
-  - [ ] Example: video brightness = volume
-  - [ ] Example: distortion amount = bass
-
-**Deliverable**: Video reacts to microphone/system audio
-
-### Sprint 7: Content Sources (Week 7)
-
-- [ ] **7.1** Image support
-  - [ ] Load PNG/JPG
-  - [ ] Texture from image
-  - [ ] Slideshow mode
-
-- [ ] **7.2** GIF/WebP animation
-  - [ ] Decode frames
-  - [ ] Sync to video playback
-
-- [ ] **7.3** Canvas source
-  - [ ] 2D canvas as texture
-  - [ ] P5.js integration possibility
-
-- [ ] **7.4** Screen capture
-  - [ ] getDisplayMedia API
-  - [ ] Capture another window
-
-**Deliverable**: Support images, screen capture as sources
-
-### Sprint 8: Layer System (Week 8)
-
-- [ ] **8.1** Multi-layer architecture
-  - [ ] Layer class/structure
-  - [ ] Z-order/index
-  - [ ] Visibility toggle
-
-- [ ] **8.2** Layer compositing
-  - [ ] Render layers to FBOs
-  - [ ] Blend layers
-  - [ ] Final composite output
-
-- [ ] **8.3** Layer UI
-  - [ ] Layer list panel
-  - [ ] Add/remove/duplicate
-  - [ ] Solo/mute layer
-
-- [ ] **8.4** Layer masks
-  - [ ] Alpha masks
-  - [ ] Draw mask shape
-  - [ ] Feather edges
-
-**Deliverable**: Multiple layers with blending and masks
+**Current focus:** Sprint 8.2 — FBO-based compositing
 
 ---
 
-## 📋 Phase 3: Performance (Weeks 9-12)
+## 📋 Phase 3: Performance (Future)
 
-### Sprint 9: Multi-Projector (Week 9)
+### Sprint 9: Multi-Output
+- [ ] Separate output window (popup) for projector
+- [ ] `?output=1` URL mode — hides all UI, just canvas fullscreen
+- [ ] BroadcastChannel or shared Zustand state across windows
+- [ ] Edge blending between outputs
 
-- [ ] **9.1** Research multi-display APIs
-  - [ ] window.screen API
-  - [ ] Fullscreen across displays
+### Sprint 10: Performance Optimization
+- [ ] FBO caching — skip re-render for unchanged surfaces
+- [ ] WebGPU renderer backend (Three.js WebGPU)
+- [ ] Texture pooling
+- [ ] Stats.js FPS display + performance warnings
 
-- [ ] **9.2** Output window management
-  - [ ] Create popup windows for outputs
-  - [ ] Position on specific displays
-  - [ ] Synchronize content
+### Sprint 11: Advanced Mapping
+- [ ] Bezier curve surface edges (more than 4 control points)
+- [ ] Grid warp (4×4 mesh control points)
+- [ ] Soft edge feathering (gradient alpha at quad edges)
+- [ ] Custom SVG mask shapes
 
-- [ ] **9.3** Edge blending
-  - [ ] Gradient alpha between projectors
-  - [ ] Blend mask editor
-
-- [ ] **9.4** Display preview
-  - [ ] Mini-map of all outputs
-  - [ ] Output status indicators
-
-**Deliverable**: Support 2-3 projectors with edge blending
-
-### Sprint 10: Performance Optimization (Week 10)
-
-- [ ] **10.1** FBO caching
-  - [ ] Cache expensive renders
-  - [ ] Invalidate on change
-
-- [ ] **10.2** WebGPU backend
-  - [ ] Research WebGPU support
-  - [ ] Three.js WebGPU renderer
-
-- [ ] **10.3** Texture pooling
-  - [ ] Reuse texture objects
-  - [ ] Reduce garbage collection
-
-- [ ] **10.4** FPS monitoring
-  - [ ] Stats.js or similar
-  - [ ] Performance warnings
-
-**Deliverable**: 60fps on mid-range laptop
-
-### Sprint 11: Advanced Mapping (Week 11)
-
-- [ ] **11.1** Bezier curve warping
-  - [ ] Curved surfaces
-  - [ ] More than 4 control points
-
-- [ ] **11.2** Grid warping
-  - [ ] 4x4 or 8x8 grid
-  - [ ] Per-point adjustment
-
-- [ ] **11.3** Soft edge masking
-  - [ ] Gradual fade at edges
-  - [ ] Mask editor
-
-- [ ] **11.4** Mask shapes
-  - [ ] Circle, triangle, custom SVG
-
-**Deliverable**: Complex curved surface mappings
-
-### Sprint 12: Project State (Week 12)
-
-- [ ] **12.1** Project file format
-  - [ ] JSON schema
-  - [ ] Assets referenced by path
-  - [ ] Binary assets base64 embedded
-
-- [ ] **12.2** Undo/redo
-  - [ ] Command pattern
-  - [ ] History stack (50 states)
-
-- [ ] **12.3** Preset system
-  - [ ] Named presets
-  - [ ] Quick recall
-  - [ ] Preset transitions
-
-- [ ] **12.4** Scene management
-  - [ ] Multiple scenes
-  - [ ] Scene transitions
-
-**Deliverable**: Save/load complex projects
+### Sprint 12: Advanced Project State
+- [ ] Project file format v2 (asset bundles, not just JSON refs)
+- [ ] Embedded binary assets in project file
+- [ ] Preset recall system (named presets, instant recall)
 
 ---
 
-## 📋 Phase 4: Hardware (Weeks 13-16)
+## 📋 Phase 4: Hardware (Future)
 
-### Sprint 13: MIDI (Week 13)
+### Sprint 13: OSC
+- [ ] OSC.js integration
+- [ ] TouchOSC layout support
+- [ ] Bi-directional sync (send state back to controller)
 
-- [ ] **13.1** Web MIDI API
-  - [ ] Access MIDI devices
-  - [ ] MIDI message parsing
+### Sprint 14: External Video Input
+- [ ] WebRTC peer connection as video source
+- [ ] IP camera MJPEG stream
+- [ ] NDI (WASM research needed)
 
-- [ ] **13.2** MIDI Learn
-  - [ ] Click to map
-  - [ ] Store mappings
-
-- [ ] **13.3** Common controllers
-  - [ ] APC40 preset
-  - [ ] Launchpad preset
-
-- [ ] **13.4** MIDI output
-  - [ ] Send MIDI for feedback
-  - [ ] LED control
-
-**Deliverable**: Physical controller support
-
-### Sprint 14: OSC (Week 14)
-
-- [ ] **14.1** OSC.js integration
-  - [ ] OSC server
-  - [ ] Message routing
-
-- [ ] **14.2** TouchOSC layouts
-  - [ ] Pre-configured layouts
-  - [ ] Bi-directional sync
-
-- [ ] **14.3** Resolume compatibility
-  - [ ] Same OSC address space
-
-**Deliverable**: OSC remote control
-
-### Sprint 15: External Input (Week 15)
-
-- [ ] **15.1** NDI research
-  - [ ] Possible in browser?
-  - [ ] WASM option?
-
-- [ ] **15.2** WebRTC input
-  - [ ] Peer connection
-  - [ ] Remote video source
-
-- [ ] **15.3** IP camera
-  - [ ] MJPEG stream
-  - [ ] RTSP (if possible)
-
-**Deliverable**: External video sources
-
-### Sprint 16: Playback Control (Week 16)
-
-- [ ] **16.1** BPM sync
-  - [ ] Tap tempo
-  - [ ] MIDI clock
-
-- [ ] **16.2** Timeline
-  - [ ] Visual timeline
-  - [ ] Cue markers
-
-- [ ] **16.3** Playlist
-  - [ ] Queue videos
-  - [ ] Auto-advance
-
-**Deliverable**: Show-ready playback
+### Sprint 15: Timeline
+- [ ] Visual timeline with playhead
+- [ ] Cue markers for scene recall
+- [ ] Video playlist / auto-advance
 
 ---
 
-## 📋 Phase 5: Polish (Weeks 17-20)
+## 📋 Phase 5: Polish (Future)
 
-### Sprint 17: UI/UX (Week 17-18)
+### Sprint 16: Distribution
+- [ ] Electron wrapper for desktop app
+- [ ] Auto-updater
+- [ ] Marketing website + download page
+- [ ] Discord community
 
-- [ ] **17.1** Theming
-  - [ ] Dark mode polished
-  - [ ] Light mode option
+### Sprint 17: Plugin System
+- [ ] Plugin API design (effect plugins, source plugins)
+- [ ] Plugin developer documentation
+- [ ] Example plugins
 
-- [ ] **17.2** Keyboard shortcuts
-  - [ ] Common actions mapped
-  - [ ] Shortcut customization
-
-- [ ] **17.3** Onboarding
-  - [ ] First-run tutorial
-  - [ ] Tooltips
-
-- [ ] **17.4** Settings panel
-  - [ ] User preferences
-  - [ ] Performance settings
-
-### Sprint 18: Documentation (Week 18-19)
-
-- [ ] **18.1** User manual
-  - [ ] Getting started
-  - [ ] Mapping tutorial
-  - [ ] Advanced features
-
-- [ ] **18.2** Video tutorials
-  - [ ] Basic setup
-  - [ ] First mapping
-  - [ ] Audio reactivity
-
-- [ ] **18.3** Example projects
-  - [ ] Sample videos
-  - [ ] Demo mappings
-
-### Sprint 19: Plugin System (Week 19)
-
-- [ ] **19.1** Plugin architecture
-  - [ ] API design
-  - [ ] Effect plugin format
-  - [ ] Source plugin format
-
-- [ ] **19.2** Plugin developer docs
-  - [ ] How to write a plugin
-  - [ ] Example plugins
-
-### Sprint 20: Distribution (Week 20)
-
-- [ ] **20.1** Electron wrapper
-  - [ ] Desktop app build
-  - [ ] Auto-updater
-
-- [ ] **20.2** Website
-  - [ ] Marketing site
-  - [ ] Download page
-
-- [ ] **20.3** Community
-  - [ ] Discord server
-  - [ ] GitHub Discussions
+### Sprint 18: Documentation
+- [ ] User manual
+- [ ] Video tutorials
+- [ ] Example projects with sample scenes
 
 ---
 
 ## 📊 Progress Tracker
 
-| Phase | Total Tasks | Completed | Progress |
-|-------|-------------|-----------|----------|
-| Phase 1 | 20 | 12 | 60% |
-| Phase 2 | 16 | 0 | 0% |
-| Phase 3 | 16 | 0 | 0% |
-| Phase 4 | 16 | 0 | 0% |
-| Phase 5 | 14 | 0 | 0% |
-| **TOTAL** | **82** | **12** | **15% |
+| Phase | Sprint | Status |
+|-------|--------|--------|
+| Phase 1 | All (1–4) | ✅ Complete |
+| Phase 2 | Sprint 5 (Effects) | ✅ Complete |
+| Phase 2 | Sprint 6 (Audio) | ✅ Complete |
+| Phase 2 | Sprint 7 (Sources) | ✅ Complete |
+| Phase 2 | Sprint 8.1 (Multi-layer) | ✅ Complete |
+| Phase 2 | Sprint 8.4 (Layer Masks) | ✅ Complete |
+| Phase 2 | Sprint 8.2 (FBO compositing) | 🔲 Next |
+| Phase 2 | Sprint 8.3 (Layer groups) | 🔲 Planned |
+| Phase 3–5 | All | 🔲 Future |
 
 ---
 
 ## 🎯 Next Actions
 
-1. **Now**: Test with a real video file and projector — Phase 1 is complete
-2. **Next**: Sprint 5 — Effects system (GLSL shader pipeline, blend modes, basic effects)
-3. **Soon**: Sprint 6 — Audio reactivity (Web Audio API, FFT, beat detection)
-
-**Current Focus**: Phase 2 — Sprint 5 (Effects System)
+1. **Now**: Sprint 8.2 — FBO-based layer compositing
+2. **Next**: Sprint 8.3 — Layer groups
+3. **Soon**: Sprint 9 — Multi-output popup window for projector
 
 ---
 
-*Last modified: March 6, 2026*
-*Update this file as tasks are completed*
+*Last modified: April 18, 2026*
