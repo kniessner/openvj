@@ -29,10 +29,23 @@ function formatTime(s: number): string {
 
 function Scene({ presentMode = false }: { presentMode?: boolean }) {
   const { surfaces, isDraggingCorner } = useSurfaceStore()
+  const isOutputMode = new URLSearchParams(window.location.search).get('mode') === 'output'
+  const audioCh = useRef<BroadcastChannel | null>(null)
+
+  useEffect(() => {
+    if (!isOutputMode) {
+      audioCh.current = new BroadcastChannel('openvj-audio')
+    }
+    return () => { audioCh.current?.close(); audioCh.current = null }
+  }, [isOutputMode])
 
   useFrame(() => {
     assetTextureManager.tickAll()
     audioEngine.tick()
+    audioCh.current?.postMessage({
+      low: audioEngine.low, mid: audioEngine.mid,
+      high: audioEngine.high, beat: audioEngine.beat, bpm: audioEngine.bpm,
+    })
   })
 
   return (
@@ -984,6 +997,19 @@ function OutputWindow() {
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
+  // Receive audio data from main window via BroadcastChannel
+  useEffect(() => {
+    const ch = new BroadcastChannel('openvj-audio')
+    ch.onmessage = (e) => {
+      audioEngine.low  = e.data.low
+      audioEngine.mid  = e.data.mid
+      audioEngine.high = e.data.high
+      audioEngine.beat = e.data.beat
+      audioEngine.bpm  = e.data.bpm
+    }
+    return () => ch.close()
   }, [])
 
   return (
