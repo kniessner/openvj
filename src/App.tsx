@@ -8,7 +8,7 @@ import { HelpModal } from './components/HelpModal'
 import { UjiGenerator } from './components/UjiGenerator'
 import { GlobalPostProcess } from './components/GlobalPostProcess'
 import { P5JsPanel } from './components/P5JsPanel'
-import { useSurfaceStore } from './stores/surfaceStore'
+import { useSurfaceStore, Surface } from './stores/surfaceStore'
 import { useAssetStore, Asset, BUILTIN_ASSETS } from './stores/assetStore'
 import { useSceneStore, type Scene } from './stores/sceneStore'
 import { useOutputStore } from './stores/outputStore'
@@ -1146,11 +1146,81 @@ function OutputWindow() {
   )
 }
 
+// ─── Performance Overlay (shown when sidebar is hidden) ───────────────────────
+
+function PerfOverlay({
+  activeSurface,
+  onUpdateOpacity,
+  onShowSidebar,
+}: {
+  activeSurface: Surface | null
+  onUpdateOpacity: (v: number) => void
+  onShowSidebar: () => void
+}) {
+  const [audioLevels, setAudioLevels] = useState({ low: 0, mid: 0, high: 0 })
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setAudioLevels({ low: audioEngine.low, mid: audioEngine.mid, high: audioEngine.high })
+    }, 50)
+    return () => clearInterval(id)
+  }, [])
+
+  return (
+    <div className="absolute bottom-4 left-4 z-10 bg-gray-900/85 backdrop-blur-sm border border-gray-700/60 rounded-xl p-3 space-y-2.5 min-w-[180px] shadow-xl">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Controls</span>
+        <button onClick={onShowSidebar}
+          className="text-[10px] text-gray-600 hover:text-gray-300 cursor-pointer transition-colors flex items-center gap-1">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+          </svg>
+          sidebar
+        </button>
+      </div>
+      {activeSurface ? (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500 truncate max-w-[100px]">{activeSurface.name}</span>
+            <span className="text-xs font-mono text-blue-400">{Math.round(activeSurface.opacity * 100)}%</span>
+          </div>
+          <input type="range" min={0} max={1} step={0.01} value={activeSurface.opacity}
+            onChange={(e) => onUpdateOpacity(parseFloat(e.target.value))}
+            className="w-full cursor-pointer h-1.5 rounded-full appearance-none"
+            style={{ background: `linear-gradient(to right, #3b82f6 ${activeSurface.opacity * 100}%, #374151 ${activeSurface.opacity * 100}%)` }}
+          />
+        </div>
+      ) : (
+        <p className="text-[10px] text-gray-600">No surface selected</p>
+      )}
+      {audioEngine.active && (
+        <div className="space-y-1 pt-1 border-t border-gray-800">
+          {([['L', audioLevels.low, '#ef4444'], ['M', audioLevels.mid, '#f59e0b'], ['H', audioLevels.high, '#22c55e']] as const).map(([lbl, val, color]) => (
+            <div key={lbl} className="flex items-center gap-1.5">
+              <span className="text-[10px] text-gray-600 w-3 font-mono">{lbl}</span>
+              <div className="flex-1 h-1 bg-gray-800 rounded-full overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: `${Math.min(100, val * 100)}%`, background: color, transition: 'width 50ms linear' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
   // All hooks must be called unconditionally before any early returns
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const s = localStorage.getItem('openvj-sidebar-width')
+    return s ? parseInt(s, 10) : 288
+  })
+  const sidebarDragRef = useRef(false)
+  const sidebarDragStartXRef = useRef(0)
+  const sidebarDragStartWRef = useRef(0)
   const [mediaOpen, setMediaOpen] = useState(true)
   const [surfaceOpen, setSurfaceOpen] = useState(true)
   const [sceneOpen, setSceneOpen] = useState(true)
@@ -1171,7 +1241,26 @@ export default function App() {
   const recorderRef = useRef<MediaRecorder | null>(null)
   const recChunksRef = useRef<Blob[]>([])
 
-  const { surfaces, activeSurfaceId, setActiveSurface, undo, redo } = useSurfaceStore()
+  const startSidebarDrag = (e: React.MouseEvent) => {
+    sidebarDragRef.current = true
+    sidebarDragStartXRef.current = e.clientX
+    sidebarDragStartWRef.current = sidebarWidth
+    const onMove = (ev: MouseEvent) => {
+      if (!sidebarDragRef.current) return
+      const w = Math.max(240, Math.min(480, sidebarDragStartWRef.current + ev.clientX - sidebarDragStartXRef.current))
+      setSidebarWidth(w)
+      localStorage.setItem('openvj-sidebar-width', String(w))
+    }
+    const onUp = () => {
+      sidebarDragRef.current = false
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  const { surfaces, activeSurfaceId, setActiveSurface, undo, redo, updateSurfaceProps } = useSurfaceStore()
   const { assets } = useAssetStore()
   const activeSurface = surfaces.find((s) => s.id === activeSurfaceId)
 
@@ -1473,7 +1562,8 @@ export default function App() {
 
         {/* ── Sidebar ── */}
         {sidebarOpen && (
-          <aside className="w-72 bg-gray-900 border-r border-gray-700/60 flex flex-col flex-shrink-0 overflow-hidden">
+          <aside className="bg-gray-900 border-r border-gray-700/60 flex flex-col flex-shrink-0 overflow-hidden relative"
+            style={{ width: sidebarWidth }}>
 
             {/* Media browser — collapsible */}
             <div className={`border-b border-gray-700 flex flex-col relative overflow-hidden flex-shrink-0 ${mediaOpen ? 'flex-1 min-h-0' : ''}`}>
@@ -1523,6 +1613,13 @@ export default function App() {
             
             {/* p5.js Status */}
             <P5JsStatus />
+
+            {/* Drag handle */}
+            <div
+              onMouseDown={startSidebarDrag}
+              className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-pink-500/30 active:bg-pink-500/50 transition-colors z-10"
+              title="Drag to resize sidebar"
+            />
           </aside>
         )}
 
@@ -1541,6 +1638,15 @@ export default function App() {
           >
             <Scene presentMode={presenting} />
           </Canvas>
+
+          {/* ── Performance overlay (visible when sidebar is hidden) ── */}
+          {!sidebarOpen && !presenting && (
+            <PerfOverlay
+              activeSurface={activeSurface ?? null}
+              onUpdateOpacity={(v) => activeSurface && updateSurfaceProps(activeSurface.id, { opacity: v })}
+              onShowSidebar={() => setSidebarOpen(true)}
+            />
+          )}
 
           {/* ── Hint overlay (dismissible, hides when not needed) ── */}
           {!hintDismissed && !presenting && (
