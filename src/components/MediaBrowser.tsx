@@ -592,7 +592,7 @@ function AssetThumbnail({ asset }: { asset: Asset }) {
 // ─── Asset card ───────────────────────────────────────────────────────────────
 
 const TYPE_COLORS: Record<AssetType, string> = {
-  video:         'text-blue-400',
+  video:         'text-[#d4f542]',
   image:         'text-green-400',
   shader:        'text-purple-400',
   webcam:        'text-yellow-400',
@@ -619,7 +619,7 @@ function AssetCard({ asset, assignedSurfaceNames, isActiveSurface, isBuiltin, on
       onClick={onAssign}
       className={`group relative flex items-center gap-2.5 px-2 py-2 rounded-lg cursor-pointer border transition-all ${
         isActiveSurface && hasAssignment
-          ? 'bg-blue-600/15 border-blue-500/50'
+          ? 'bg-[#d4f542]/10 border-[#d4f542]/50'
           : hasAssignment
           ? 'bg-gray-800 border-gray-600'
           : 'bg-gray-800/60 border-transparent hover:bg-gray-800 hover:border-gray-700'
@@ -915,7 +915,7 @@ export function MediaBrowser({ onEditShader, onNewUji, onEditUji, collapsed = fa
               <div
                 className={`h-full min-h-24 flex flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors ${
                   isDragOver
-                    ? 'border-blue-500 bg-blue-500/10'
+                    ? 'border-[#d4f542] bg-[#d4f542]/10'
                     : 'border-gray-700 text-gray-600'
                 }`}
               >

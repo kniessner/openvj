@@ -79,7 +79,8 @@ export const P5JsPanel: React.FC<P5JsPanelProps> = ({ collapsed, onToggle }) => 
           <div className="flex items-center gap-1 px-2 py-1.5 border-b border-gray-700/40">
             <button
               onClick={() => addLayer()}
-              className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 transition-colors cursor-pointer rounded"
+              title="Create a new blank p5.js sketch"
+              className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1 text-xs text-[#d4f542] hover:text-[#d4f542] hover:bg-[#d4f542]/10 transition-colors cursor-pointer rounded"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -88,9 +89,10 @@ export const P5JsPanel: React.FC<P5JsPanelProps> = ({ collapsed, onToggle }) => 
             </button>
             <button
               onClick={() => setShowTemplates(!showTemplates)}
+              title="Browse starter templates — great for beginners"
               className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer ${
-                showTemplates 
-                  ? 'bg-blue-600 text-white' 
+                showTemplates
+                  ? 'bg-[#d4f542] text-black'
                   : 'text-gray-500 hover:text-gray-300 hover:bg-gray-700'
               }`}
             >
@@ -144,7 +146,7 @@ export const P5JsPanel: React.FC<P5JsPanelProps> = ({ collapsed, onToggle }) => 
               <div
                 key={layer.id}
                 className={`group flex flex-col gap-1 px-2 py-1.5 cursor-pointer hover:bg-gray-800/60 transition-colors ${
-                  activeLayerId === layer.id ? 'bg-blue-900/20 border-l-2 border-blue-500' : 'border-l-2 border-transparent'
+                  activeLayerId === layer.id ? 'bg-[#d4f542]/10 border-l-2 border-[#d4f542]' : 'border-l-2 border-transparent'
                 }`}
               >
                 {/* Layer header row */}
@@ -152,6 +154,7 @@ export const P5JsPanel: React.FC<P5JsPanelProps> = ({ collapsed, onToggle }) => 
                   {/* Visibility toggle */}
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleLayer(layer.id); }}
+                    title={layer.isPlaying ? 'Pause sketch' : 'Play sketch'}
                     className={`flex-shrink-0 ${layer.isPlaying ? 'text-green-400' : 'text-gray-600'}`}
                   >
                     {layer.isPlaying ? (
@@ -205,7 +208,7 @@ export const P5JsPanel: React.FC<P5JsPanelProps> = ({ collapsed, onToggle }) => 
                       setActiveLayer(layer.id);
                       setEditingLayerId(layer.id);
                     }}
-                    className="p-1 rounded transition-colors text-gray-600 hover:text-blue-400 hover:bg-gray-700"
+                    className="p-1 rounded transition-colors text-gray-600 hover:text-[#d4f542] hover:bg-gray-700"
                     title="Open full editor"
                   >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

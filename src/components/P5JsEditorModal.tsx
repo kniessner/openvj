@@ -287,7 +287,7 @@ export const P5JsEditorModal: React.FC<P5JsEditorModalProps> = ({ isOpen, onClos
 
           {/* Preview toggle */}
           <button onClick={() => setShowPreview(!showPreview)} title="Toggle preview"
-            className={`p-1.5 rounded text-xs border transition-colors ${showPreview ? 'bg-blue-600/20 border-blue-500/40 text-blue-400' : 'bg-gray-800 border-gray-700 text-gray-500 hover:text-gray-300'}`}>
+            className={`p-1.5 rounded text-xs border transition-colors ${showPreview ? 'bg-[#d4f542]/20 border-[#d4f542]/40 text-[#d4f542]' : 'bg-gray-800 border-gray-700 text-gray-500 hover:text-gray-300'}`}>
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>

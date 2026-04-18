@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --primary: #3b82f6;
-  --primary-dark: #2563eb;
+  --primary: #d4f542;
+  --primary-dark: #b8d930;
 }
 
 body {
@@ -72,7 +72,7 @@ input[type="range"]::-webkit-slider-thumb {
 input[type="range"]::-webkit-slider-thumb:hover,
 input[type="range"]:active::-webkit-slider-thumb {
   transform: scale(1.2);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 0 3px rgba(212, 245, 66, 0.4);
 }
 
 input[type="range"]:disabled {
@@ -92,5 +92,5 @@ input[type="number"]::-webkit-outer-spin-button {
 
 input[type="number"]:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #d4f542;
 }

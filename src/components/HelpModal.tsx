@@ -37,7 +37,7 @@ function OverviewContent() {
           <li>Drag the handles to warp the quad to match your projection target</li>
           <li>Assign content in one of three ways:
             <ul className="mt-1 space-y-1 list-disc list-inside pl-4">
-              <li><strong className="text-blue-400">Media</strong> panel — drag video/image files or click built-in shaders</li>
+              <li><strong className="text-[#d4f542]">Media</strong> panel — drag video/image files or click built-in shaders</li>
               <li><strong className="text-orange-400">p5.js</strong> panel — code generative art, then click the ⛶ icon to assign to the selected surface</li>
               <li>Or select from any asset in the Media panel and click to assign</li>
             </ul>
@@ -76,7 +76,7 @@ function OverviewContent() {
             ['Screen',  'Capture any window or display via browser API.'],
           ].map(([type, desc]) => (
             <div key={type} className="flex gap-3">
-              <span className="text-blue-400 font-medium w-16 flex-shrink-0">{type}</span>
+              <span className="text-[#d4f542] font-medium w-16 flex-shrink-0">{type}</span>
               <span className="text-gray-500">{desc}</span>
             </div>
           ))}
@@ -204,8 +204,8 @@ function ShadersContent() {
             <p className="text-purple-300 font-semibold mb-1.5">Asset Shader (Media panel)</p>
             <p className="text-gray-400">A standalone GLSL fragment program that <em>generates</em> visuals from scratch. Assigned to a surface the same way as a video or image. Write <Mono>void main()</Mono> and set <Mono>gl_FragColor</Mono>.</p>
           </div>
-          <div className="bg-gray-800/50 rounded-lg p-3 border border-blue-800/40">
-            <p className="text-blue-300 font-semibold mb-1.5">Surface Post-Process (Inspector)</p>
+          <div className="bg-gray-800/50 rounded-lg p-3 border border-[#d4f542]/30">
+            <p className="text-[#d4f542] font-semibold mb-1.5">Surface Post-Process (Inspector)</p>
             <p className="text-gray-400">A per-surface GLSL function applied <em>after</em> all FX sliders (brightness, hue, warp, etc.). Receives the processed color and UV, returns the final color. Write <Mono>vec4 applyFX(vec4 color, vec2 uv)</Mono>.</p>
           </div>
         </div>
@@ -611,7 +611,7 @@ export function HelpModal({ onClose }: HelpModalProps) {
               onClick={() => setTab(t)}
               className={`px-4 py-1.5 text-xs rounded-t border-b-2 transition-colors cursor-pointer ${
                 tab === t
-                  ? 'text-gray-100 border-blue-500 bg-gray-800/60'
+                  ? 'text-gray-100 border-[#d4f542] bg-gray-800/60'
                   : 'text-gray-500 border-transparent hover:text-gray-300 hover:bg-gray-800/30'
               }`}
             >

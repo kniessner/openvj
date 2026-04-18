@@ -422,7 +422,7 @@ function Transport({ videoEl, assetName }: TransportProps) {
         {([0.5, 1, 2, 4] as const).map((r) => (
           <button key={r} onClick={() => setRate(r)} disabled={!videoEl}
             className={`px-1.5 py-0.5 text-xs rounded font-mono transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
-              rate === r ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-500 hover:text-gray-200 hover:bg-gray-700'
+              rate === r ? 'bg-[#d4f542] text-black' : 'bg-gray-800 text-gray-500 hover:text-gray-200 hover:bg-gray-700'
             }`}
           >{r}×</button>
         ))}
@@ -433,7 +433,7 @@ function Transport({ videoEl, assetName }: TransportProps) {
         onClick={() => setLoop((l) => !l)} disabled={!videoEl}
         title={loop ? 'Loop on' : 'Loop off'}
         className={`p-1.5 rounded transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0 ${
-          loop ? 'text-blue-400 hover:text-blue-300 hover:bg-gray-800' : 'text-gray-700 hover:text-gray-400 hover:bg-gray-800'
+          loop ? 'text-[#d4f542] hover:text-[#d4f542] hover:bg-gray-800' : 'text-gray-700 hover:text-gray-400 hover:bg-gray-800'
         }`}
       >
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -855,7 +855,7 @@ function ScenesPanel({ collapsed, onToggle, onSaveScene }: ScenesPanelProps) {
           <div className="flex items-center border-b border-gray-700/40">
             <button
               onClick={onSaveScene}
-              className="flex-1 flex items-center gap-2 px-3 py-1.5 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 transition-colors cursor-pointer"
+              className="flex-1 flex items-center gap-2 px-3 py-1.5 text-xs text-[#d4f542] hover:text-[#d4f542] hover:bg-[#d4f542]/10 transition-colors cursor-pointer"
             >
               <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -889,7 +889,7 @@ function ScenesPanel({ collapsed, onToggle, onSaveScene }: ScenesPanelProps) {
             <div
               key={scene.id}
               className={`group flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-800/60 transition-colors ${
-                activeSceneId === scene.id ? 'bg-blue-900/20 border-l-2 border-blue-500' : 'border-l-2 border-transparent'
+                activeSceneId === scene.id ? 'bg-[#d4f542]/10 border-l-2 border-[#d4f542]' : 'border-l-2 border-transparent'
               }`}
               onClick={() => loadScene(scene)}
             >
@@ -1182,7 +1182,7 @@ function PerfOverlay({
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-500 truncate max-w-[100px]">{activeSurface.name}</span>
-            <span className="text-xs font-mono text-blue-400">{Math.round(activeSurface.opacity * 100)}%</span>
+            <span className="text-xs font-mono text-[#d4f542]">{Math.round(activeSurface.opacity * 100)}%</span>
           </div>
           <input type="range" min={0} max={1} step={0.01} value={activeSurface.opacity}
             onChange={(e) => onUpdateOpacity(parseFloat(e.target.value))}
@@ -1218,9 +1218,16 @@ export default function App() {
     const s = localStorage.getItem('openvj-sidebar-width')
     return s ? parseInt(s, 10) : 288
   })
+  const [mediaHeight, setMediaHeight] = useState(() => {
+    const s = localStorage.getItem('openvj-media-height')
+    return s ? parseInt(s, 10) : 240
+  })
   const sidebarDragRef = useRef(false)
   const sidebarDragStartXRef = useRef(0)
   const sidebarDragStartWRef = useRef(0)
+  const mediaDragRef = useRef(false)
+  const mediaDragStartYRef = useRef(0)
+  const mediaDragStartHRef = useRef(0)
   const [mediaOpen, setMediaOpen] = useState(true)
   const [surfaceOpen, setSurfaceOpen] = useState(true)
   const [sceneOpen, setSceneOpen] = useState(true)
@@ -1253,6 +1260,25 @@ export default function App() {
     }
     const onUp = () => {
       sidebarDragRef.current = false
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  const startMediaDrag = (e: React.MouseEvent) => {
+    mediaDragRef.current = true
+    mediaDragStartYRef.current = e.clientY
+    mediaDragStartHRef.current = mediaHeight
+    const onMove = (ev: MouseEvent) => {
+      if (!mediaDragRef.current) return
+      const h = Math.max(80, Math.min(600, mediaDragStartHRef.current + ev.clientY - mediaDragStartYRef.current))
+      setMediaHeight(h)
+      localStorage.setItem('openvj-media-height', String(h))
+    }
+    const onUp = () => {
+      mediaDragRef.current = false
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
@@ -1418,12 +1444,12 @@ export default function App() {
       {isDragOver && (
         <div className="absolute inset-0 z-50 bg-blue-950/80 backdrop-blur-sm flex items-center justify-center pointer-events-none">
           <div className="text-center">
-            <svg className="w-16 h-16 mx-auto mb-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-16 h-16 mx-auto mb-3 text-[#d4f542]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                 d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
-            <p className="text-lg font-semibold text-blue-200">Drop to add asset</p>
-            <p className="text-sm text-blue-400/70 mt-1">Video · Image · GIF</p>
+            <p className="text-lg font-semibold text-[#d4f542]">Drop to add asset</p>
+            <p className="text-sm text-[#d4f542]/70 mt-1">Video · Image · GIF</p>
           </div>
         </div>
       )}
@@ -1441,13 +1467,13 @@ export default function App() {
           <span className="text-xs text-gray-600 px-1.5 py-0.5 bg-gray-800 rounded font-mono">v0.5.0</span>
 
           {activeSurface && (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/10 border border-blue-500/30 rounded text-xs text-blue-400">
+            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#d4f542]/10 border border-[#d4f542]/30 rounded text-xs text-[#d4f542]">
               <div className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
               {activeSurface.name}
               {activeAsset && (
-                <span className="text-blue-600">· {activeAsset.name}</span>
+                <span className="text-[#d4f542]">· {activeAsset.name}</span>
               )}
-              <button onClick={() => setActiveSurface(null)} className="ml-0.5 hover:text-blue-200 cursor-pointer" title="Deselect (Esc)">
+              <button onClick={() => setActiveSurface(null)} className="ml-0.5 hover:text-[#d4f542] cursor-pointer" title="Deselect (Esc)">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -1475,7 +1501,7 @@ export default function App() {
               'openvj-output',
               'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no'
             )}
-            title="Open output window — move to projector display"
+            title="Open output window — drag to projector display, no UI clutter"
             className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-colors cursor-pointer"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1565,8 +1591,11 @@ export default function App() {
           <aside className="bg-gray-900 border-r border-gray-700/60 flex flex-col flex-shrink-0 overflow-hidden relative"
             style={{ width: sidebarWidth }}>
 
-            {/* Media browser — collapsible */}
-            <div className={`border-b border-gray-700 flex flex-col relative overflow-hidden flex-shrink-0 ${mediaOpen ? 'flex-1 min-h-0' : ''}`}>
+            {/* Media browser — collapsible, resizable */}
+            <div
+              className="border-b border-gray-700 flex flex-col relative overflow-hidden flex-shrink-0"
+              style={mediaOpen ? { height: mediaHeight } : undefined}
+            >
               <MediaBrowser
                 onEditShader={setEditingShader}
                 onNewUji={() => { setEditingUji(null); setCreatingUji(true) }}
@@ -1576,8 +1605,19 @@ export default function App() {
               />
             </div>
 
-            {/* Surfaces + inspector — collapsible */}
-            <div className={`flex flex-col overflow-hidden flex-shrink-0 ${surfaceOpen ? 'flex-1 min-h-0' : ''}`}>
+            {/* Panel resize handle between media and surfaces */}
+            {mediaOpen && surfaceOpen && (
+              <div
+                onMouseDown={startMediaDrag}
+                className="h-1.5 bg-gray-800 hover:bg-[#d4f542]/40 active:bg-[#d4f542]/60 cursor-row-resize flex-shrink-0 transition-colors group"
+                title="Drag to resize panels"
+              >
+                <div className="w-8 h-0.5 bg-gray-600 group-hover:bg-[#d4f542]/60 rounded-full mx-auto mt-0.5 transition-colors" />
+              </div>
+            )}
+
+            {/* Surfaces + inspector — collapsible, takes remaining space */}
+            <div className={`flex flex-col overflow-hidden ${surfaceOpen ? 'flex-1 min-h-0' : 'flex-shrink-0'}`}>
               <SurfaceList
                 collapsed={!surfaceOpen}
                 onToggle={() => setSurfaceOpen((o) => !o)}
@@ -1661,7 +1701,7 @@ export default function App() {
                 </svg>
               </button>
               <div className="space-y-0.5 pointer-events-none">
-                <div><span className="text-blue-400/80">Click surface</span> to select</div>
+                <div><span className="text-[#d4f542]/80">Click surface</span> to select</div>
                 <div><span className="text-red-400/80">Drag handles</span> to warp</div>
                 <div><span className="text-gray-500/80">Scroll</span> to zoom · <span className="text-violet-400/80">F</span> to present</div>
               </div>

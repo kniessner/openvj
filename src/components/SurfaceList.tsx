@@ -216,7 +216,7 @@ function PresetPicker({ onClose }: PresetPickerProps) {
             <button
               key={preset.id}
               onClick={() => apply(preset)}
-              className="flex items-center gap-2.5 p-2 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-700/60 hover:border-blue-600/50 transition-colors cursor-pointer text-left group"
+              className="flex items-center gap-2.5 p-2 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-700/60 hover:border-[#d4f542]/50 transition-colors cursor-pointer text-left group"
             >
               <div className="flex-shrink-0 opacity-70 group-hover:opacity-100 transition-opacity">
                 <PresetThumbnail preset={preset} />
@@ -727,10 +727,10 @@ interface SliderProps {
 function Slider({ label, value, min, max, step = 0.01, displayValue, onChange, disabled }: SliderProps) {
   const pct = ((value - min) / (max - min)) * 100
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <div className="flex justify-between items-center">
-        <span className="text-xs text-gray-400">{label}</span>
-        <span className="text-xs font-mono text-gray-300 tabular-nums w-12 text-right">
+        <span className="text-xs text-gray-300 font-medium">{label}</span>
+        <span className="text-xs font-mono text-[#d4f542] tabular-nums w-14 text-right">
           {displayValue ?? value.toFixed(2)}
         </span>
       </div>
@@ -744,7 +744,7 @@ function Slider({ label, value, min, max, step = 0.01, displayValue, onChange, d
         onChange={(e) => onChange(parseFloat(e.target.value))}
         className="w-full cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
         style={{
-          background: `linear-gradient(to right, #3b82f6 ${pct}%, #374151 ${pct}%)`,
+          background: `linear-gradient(to right, #d4f542 ${pct}%, #2d3748 ${pct}%)`,
         }}
       />
     </div>
@@ -839,11 +839,11 @@ interface InspectorProps {
 
 function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
   const { updateSurfaceProps, resetSurface, setActiveSurface } = useSurfaceStore()
-  const [cornersOpen, setCornersOpen] = useState(false)
-  const [colorOpen, setColorOpen] = useState(false)
-  const [transformOpen, setTransformOpen] = useState(false)
-  const [fxOpen, setFxOpen] = useState(false)
-  const [maskOpen, setMaskOpen] = useState(false)
+  const [cornersOpen, setCornersOpen] = useState(() => localStorage.getItem('openvj-insp-corners') === 'true')
+  const [colorOpen, setColorOpen] = useState(() => localStorage.getItem('openvj-insp-color') === 'true')
+  const [transformOpen, setTransformOpen] = useState(() => localStorage.getItem('openvj-insp-transform') === 'true')
+  const [fxOpen, setFxOpen] = useState(() => localStorage.getItem('openvj-insp-fx') === 'true')
+  const [maskOpen, setMaskOpen] = useState(() => localStorage.getItem('openvj-insp-mask') === 'true')
 
   const update = useCallback(
     (props: Parameters<typeof updateSurfaceProps>[1]) => updateSurfaceProps(surface.id, props),
@@ -874,15 +874,18 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
   const hasMask = maskShape !== 'none'
 
   return (
-    <div className="border-t border-gray-700 flex flex-col overflow-hidden" style={{ minHeight: 0, maxHeight: '60vh' }}>
-      {/* Inspector header */}
-      <div className="px-3 py-2 bg-gray-900/60 flex items-center gap-2 flex-shrink-0">
-        <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Inspector</span>
-        <span className="text-xs text-gray-500 truncate flex-1">{surface.name}</span>
+    <div className="border-t-2 border-[#d4f542]/50 flex flex-col overflow-hidden" style={{ minHeight: 0, maxHeight: '60vh' }}>
+      {/* Inspector header — shows clearly which surface is active */}
+      <div className="px-3 py-2.5 bg-gray-900 border-b border-gray-700/60 flex items-center gap-2.5 flex-shrink-0">
+        <div className="w-1.5 h-1.5 rounded-full bg-[#d4f542] flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold leading-none mb-0.5">Inspector</div>
+          <div className="text-sm font-semibold text-gray-100 truncate leading-tight">{surface.name}</div>
+        </div>
         <button
           onClick={() => setActiveSurface(null)}
-          className="p-0.5 rounded text-gray-500 hover:text-gray-200 hover:bg-gray-700 transition-colors cursor-pointer flex-shrink-0"
-          title="Close inspector"
+          className="p-1 rounded text-gray-500 hover:text-gray-200 hover:bg-gray-700 transition-colors cursor-pointer flex-shrink-0"
+          title="Deselect surface (Esc)"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -892,7 +895,7 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
 
       <div className="overflow-y-auto flex-1 min-h-0">
         {/* ── Image ── */}
-        <div className="px-3 py-3 space-y-3 border-b border-gray-800/60">
+        <div className="px-3 py-4 space-y-4 border-b border-gray-800/60">
           <Slider label="Opacity"    value={surface.opacity ?? 0.95} min={0} max={1}
             displayValue={`${Math.round((surface.opacity ?? 0.95) * 100)}%`}
             onChange={(v) => update({ opacity: v })} disabled={surface.locked} />
@@ -908,6 +911,7 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
             <div className="flex gap-1">
               {(['normal','add','screen','multiply'] as const).map((mode) => (
                 <button key={mode} onClick={() => update({ blendMode: mode })} disabled={surface.locked}
+                  title={{ normal: 'Normal blending', add: 'Additive — glows and neon', screen: 'Screen — bright highlights', multiply: 'Multiply — dark textures' }[mode]}
                   className={`flex-1 py-0.5 text-xs rounded transition-colors cursor-pointer disabled:opacity-40 capitalize ${
                     (surface.blendMode ?? 'normal') === mode
                       ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
@@ -921,15 +925,16 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
         {/* ── Color FX ── */}
         <div className="border-b border-gray-800/60">
           <button
-            onClick={() => setColorOpen(o => !o)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
+            onClick={() => setColorOpen(o => { localStorage.setItem('openvj-insp-color', String(!o)); return !o })}
+            title="Color adjustments — hue, saturation, invert"
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-gray-300 hover:text-gray-100 transition-colors cursor-pointer"
           >
             <IconChevron open={colorOpen} />
             <span className="uppercase tracking-wider font-medium">Color</span>
             {hasClr && <span className="ml-auto w-1.5 h-1.5 bg-violet-400 rounded-full" />}
           </button>
           {colorOpen && (
-            <div className="px-3 pb-3 space-y-3">
+            <div className="px-3 pb-4 space-y-4">
               <Slider label="Hue Shift" value={hue} min={-180} max={180} step={1}
                 displayValue={`${hue > 0 ? '+' : ''}${hue}°`}
                 onChange={(v) => update({ hue: v })} disabled={surface.locked} />
@@ -953,15 +958,16 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
         {/* ── Transform ── */}
         <div className="border-b border-gray-800/60">
           <button
-            onClick={() => setTransformOpen(o => !o)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
+            onClick={() => setTransformOpen(o => { localStorage.setItem('openvj-insp-transform', String(!o)); return !o })}
+            title="Transform — flip, rotate, zoom"
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-gray-300 hover:text-gray-100 transition-colors cursor-pointer"
           >
             <IconChevron open={transformOpen} />
             <span className="uppercase tracking-wider font-medium">Transform</span>
             {hasTfm && <span className="ml-auto w-1.5 h-1.5 bg-blue-400 rounded-full" />}
           </button>
           {transformOpen && (
-            <div className="px-3 pb-3 space-y-3">
+            <div className="px-3 pb-4 space-y-4">
               {/* Flip buttons */}
               <div className="space-y-1">
                 <span className="text-xs text-gray-400">Flip</span>
@@ -969,11 +975,13 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
                   <button
                     onClick={() => update({ flipH: !flipH })}
                     disabled={surface.locked}
+                    title="Mirror image left ↔ right"
                     className={`flex-1 py-1 text-xs rounded transition-colors cursor-pointer disabled:opacity-40 ${flipH ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
                   >⟷ Horizontal</button>
                   <button
                     onClick={() => update({ flipV: !flipV })}
                     disabled={surface.locked}
+                    title="Mirror image top ↔ bottom"
                     className={`flex-1 py-1 text-xs rounded transition-colors cursor-pointer disabled:opacity-40 ${flipV ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
                   >↕ Vertical</button>
                 </div>
@@ -991,15 +999,16 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
         {/* ── FX ── */}
         <div className="border-b border-gray-800/60">
           <button
-            onClick={() => setFxOpen(o => !o)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
+            onClick={() => setFxOpen(o => { localStorage.setItem('openvj-insp-fx', String(!o)); return !o })}
+            title="FX — warp, RGB split, pixelate, vignette, edge blend"
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-gray-300 hover:text-gray-100 transition-colors cursor-pointer"
           >
             <IconChevron open={fxOpen} />
             <span className="uppercase tracking-wider font-medium">FX</span>
             {hasFx && <span className="ml-auto w-1.5 h-1.5 bg-orange-400 rounded-full" />}
           </button>
           {fxOpen && (
-            <div className="px-3 pb-3 space-y-3">
+            <div className="px-3 pb-4 space-y-4">
               <Slider label="Wave Warp" value={warpAmp} min={0} max={0.15} step={0.001}
                 displayValue={warpAmp === 0 ? 'Off' : warpAmp.toFixed(3)}
                 onChange={(v) => update({ warpAmp: v })} disabled={surface.locked} />
@@ -1038,15 +1047,16 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
         {/* ── Mask ── */}
         <div className="border-b border-gray-800/60">
           <button
-            onClick={() => setMaskOpen(o => !o)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
+            onClick={() => setMaskOpen(o => { localStorage.setItem('openvj-insp-mask', String(!o)); return !o })}
+            title="Mask — shape-based transparency overlay"
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-gray-300 hover:text-gray-100 transition-colors cursor-pointer"
           >
             <IconChevron open={maskOpen} />
             <span className="uppercase tracking-wider font-medium">Mask</span>
             {hasMask && <span className="ml-auto w-1.5 h-1.5 bg-amber-400 rounded-full" />}
           </button>
           {maskOpen && (
-            <div className="px-3 pb-3 space-y-3">
+            <div className="px-3 pb-4 space-y-4">
               {/* Shape picker */}
               <div className="space-y-1.5">
                 <span className="text-xs text-gray-400">Shape</span>
@@ -1161,8 +1171,9 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
         {/* ── Corners ── */}
         <div className="border-b border-gray-800/60">
           <button
-            onClick={() => setCornersOpen((o) => !o)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
+            onClick={() => setCornersOpen(o => { localStorage.setItem('openvj-insp-corners', String(!o)); return !o })}
+            title="Fine-tune corner positions numerically"
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-gray-300 hover:text-gray-100 transition-colors cursor-pointer"
           >
             <IconChevron open={cornersOpen} />
             <span className="uppercase tracking-wider font-medium">Corners</span>
@@ -1198,6 +1209,7 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
               <button
                 onClick={onEditShader}
                 disabled={surface.locked}
+                title={surface.customShader ? 'Edit the GLSL shader for this surface' : 'Add a custom GLSL post-process shader'}
                 className="px-2 py-0.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded border border-gray-700 hover:border-gray-500 transition-colors cursor-pointer disabled:opacity-40"
               >
                 {surface.customShader ? 'Edit' : '+ Add'}
@@ -1211,6 +1223,7 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
           <button
             onClick={() => resetSurface(surface.id)}
             disabled={surface.locked}
+            title="Reset all inspector values to defaults (can't undo this one)"
             className="w-full py-1.5 text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded transition-colors border border-gray-700 hover:border-gray-500 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             Reset to Default
@@ -1261,9 +1274,9 @@ function SurfaceItem({ surface, index, isActive, onSelect, onEditShader, onDragS
       className={`group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors select-none ${
         dragging ? 'opacity-40' : ''
       } ${
-        isDragTarget ? 'border border-blue-400/70 bg-blue-600/10' :
+        isDragTarget ? 'border border-[#d4f542]/70 bg-[#d4f542]/10' :
         isActive
-          ? 'bg-blue-600/15 border border-blue-500/50'
+          ? 'bg-[#d4f542]/10 border border-[#d4f542]/50'
           : 'border border-transparent hover:bg-gray-700/60'
       }`}
     >
@@ -1354,7 +1367,7 @@ function SurfaceItem({ surface, index, isActive, onSelect, onEditShader, onDragS
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); cloneSurface(surface.id) }}
-          className="p-1 rounded text-gray-400 hover:text-blue-400 hover:bg-gray-600 transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+          className="p-1 rounded text-gray-400 hover:text-[#d4f542] hover:bg-gray-600 transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
           title="Duplicate surface"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1514,7 +1527,7 @@ export function SurfaceList({ collapsed = false, onToggle }: SurfaceListProps = 
               title="Layout presets"
               className={`flex items-center gap-1 px-2 py-1 text-xs rounded border transition-colors cursor-pointer ${
                 presetsOpen
-                  ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
+                  ? 'bg-[#d4f542]/15 border-[#d4f542]/50 text-[#d4f542]'
                   : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-500'
               }`}
             >
@@ -1539,7 +1552,8 @@ export function SurfaceList({ collapsed = false, onToggle }: SurfaceListProps = 
             {/* Add button */}
             <button
               onClick={addSurface}
-              className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors cursor-pointer"
+              title="Add a new blank surface — drag it wherever you want"
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-[#d4f542] hover:bg-[#b8d930] text-black rounded transition-colors cursor-pointer"
             >
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />

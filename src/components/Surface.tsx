@@ -331,7 +331,7 @@ export function SurfaceMesh({ surface, presentMode = false }: SurfaceMeshProps) 
           position={[surface.corners[0].x, surface.corners[0].y + 0.35, 0]}
           style={{ pointerEvents: 'none', userSelect: 'none' }}
         >
-          <div className="bg-blue-600/90 backdrop-blur-sm text-white text-xs px-2 py-0.5 rounded shadow-lg whitespace-nowrap font-medium">
+          <div className="bg-[#d4f542]/90 backdrop-blur-sm text-gray-900 text-xs px-2 py-0.5 rounded shadow-lg whitespace-nowrap font-medium">
             {surface.name}
             {N !== 4 && <span className="ml-1 opacity-60">{N}pt</span>}
           </div>
@@ -345,7 +345,7 @@ export function SurfaceMesh({ surface, presentMode = false }: SurfaceMeshProps) 
             ...surface.corners.map(c => [c.x, c.y, 0.005] as [number, number, number]),
             [surface.corners[0].x, surface.corners[0].y, 0.005],
           ]}
-          color="#3b82f6"
+          color="#d4f542"
           lineWidth={1.5}
         />
       )}
