@@ -82,7 +82,7 @@ function Slider({ label, value, min, max, step, defaultValue, format, accent = '
           onChange={(e) => setEditVal(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false) }}
-          className="text-xs font-mono text-right tabular-nums w-14 bg-gray-800 border border-blue-500/50 rounded px-1 py-0.5 outline-none"
+          className="text-xs font-mono text-right tabular-nums w-14 bg-gray-800 border border-gray-600/60 rounded px-1 py-0.5 outline-none"
           style={{ color: accent }} />
       ) : (
         <span className="text-xs font-mono text-right tabular-nums w-14 cursor-pointer hover:opacity-70 transition-opacity"

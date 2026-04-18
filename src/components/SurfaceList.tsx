@@ -134,8 +134,8 @@ function PresetThumbnail({ preset }: { preset: SurfacePreset }) {
         return (
           <polygon key={i}
             points={pts}
-            fill={`rgba(59,130,246,${0.25 + i * 0.07})`}
-            stroke="#3b82f6"
+            fill={`rgba(212,245,66,${0.25 + i * 0.07})`}
+            stroke="#d4f542"
             strokeWidth="1"
           />
         )
@@ -727,10 +727,10 @@ interface SliderProps {
 function Slider({ label, value, min, max, step = 0.01, displayValue, onChange, disabled }: SliderProps) {
   const pct = ((value - min) / (max - min)) * 100
   return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between items-center">
-        <span className="text-xs text-gray-300 font-medium">{label}</span>
-        <span className="text-xs font-mono text-[#d4f542] tabular-nums w-14 text-right">
+    <div className="space-y-2">
+      <div className="flex justify-between items-baseline gap-2">
+        <span className="text-[11px] text-gray-400 font-medium uppercase tracking-wide leading-none select-none">{label}</span>
+        <span className="text-sm font-semibold font-mono text-[#d4f542] tabular-nums leading-none shrink-0">
           {displayValue ?? value.toFixed(2)}
         </span>
       </div>
@@ -894,8 +894,8 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
       </div>
 
       <div className="overflow-y-auto flex-1 min-h-0">
-        {/* ── Image ── */}
-        <div className="px-3 py-4 space-y-4 border-b border-gray-800/60">
+        {/* ── Primary controls ── */}
+        <div className="px-4 pt-4 pb-5 space-y-5 border-b border-gray-800">
           <Slider label="Opacity"    value={surface.opacity ?? 0.95} min={0} max={1}
             displayValue={`${Math.round((surface.opacity ?? 0.95) * 100)}%`}
             onChange={(v) => update({ opacity: v })} disabled={surface.locked} />
@@ -905,16 +905,16 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
           <Slider label="Contrast"   value={surface.contrast ?? 0}   min={-0.5} max={0.5}
             displayValue={(surface.contrast ?? 0) >= 0 ? `+${(surface.contrast ?? 0).toFixed(2)}` : (surface.contrast ?? 0).toFixed(2)}
             onChange={(v) => update({ contrast: v })} disabled={surface.locked} />
-          {/* Blend mode */}
-          <div className="space-y-1">
-            <span className="text-xs text-gray-400">Blend</span>
-            <div className="flex gap-1">
+          {/* Blend mode — segmented control style */}
+          <div className="space-y-2">
+            <span className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Blend Mode</span>
+            <div className="grid grid-cols-4 gap-1 p-0.5 bg-gray-800/60 rounded-lg">
               {(['normal','add','screen','multiply'] as const).map((mode) => (
                 <button key={mode} onClick={() => update({ blendMode: mode })} disabled={surface.locked}
                   title={{ normal: 'Normal blending', add: 'Additive — glows and neon', screen: 'Screen — bright highlights', multiply: 'Multiply — dark textures' }[mode]}
-                  className={`flex-1 py-0.5 text-xs rounded transition-colors cursor-pointer disabled:opacity-40 capitalize ${
+                  className={`py-1.5 text-[11px] font-medium rounded-md transition-all cursor-pointer disabled:opacity-40 capitalize ${
                     (surface.blendMode ?? 'normal') === mode
-                      ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                      ? 'bg-gray-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
                   }`}
                 >{mode}</button>
               ))}
@@ -927,11 +927,13 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
           <button
             onClick={() => setColorOpen(o => { localStorage.setItem('openvj-insp-color', String(!o)); return !o })}
             title="Color adjustments — hue, saturation, invert"
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-gray-300 hover:text-gray-100 transition-colors cursor-pointer"
+            className={`w-full flex items-center gap-2.5 px-4 py-3 text-xs font-semibold uppercase tracking-wide transition-all cursor-pointer border-l-2 ${
+              colorOpen ? 'border-[#d4f542]/60 bg-gray-800/50 text-white' : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/30'
+            }`}
           >
             <IconChevron open={colorOpen} />
-            <span className="uppercase tracking-wider font-medium">Color</span>
-            {hasClr && <span className="ml-auto w-1.5 h-1.5 bg-violet-400 rounded-full" />}
+            <span>Color</span>
+            {hasClr && <span className="ml-auto w-2 h-2 bg-violet-400 rounded-full" />}
           </button>
           {colorOpen && (
             <div className="px-3 pb-4 space-y-4">
@@ -941,14 +943,15 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
               <Slider label="Saturation" value={saturation} min={0} max={2} step={0.01}
                 displayValue={saturation.toFixed(2)}
                 onChange={(v) => update({ saturation: v })} disabled={surface.locked} />
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-400">Invert</span>
+              <div className="flex items-center justify-between py-0.5">
+                <span className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Invert Colors</span>
                 <button
                   onClick={() => update({ invert: !invert })}
                   disabled={surface.locked}
-                  className={`w-10 h-5 rounded-full transition-colors cursor-pointer disabled:opacity-40 relative ${invert ? 'bg-violet-600' : 'bg-gray-700'}`}
+                  title="Invert all colors in this surface"
+                  className={`w-11 h-6 rounded-full transition-colors cursor-pointer disabled:opacity-40 relative flex-shrink-0 ${invert ? 'bg-violet-600' : 'bg-gray-700'}`}
                 >
-                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${invert ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform ${invert ? 'translate-x-5' : 'translate-x-0.5'}`} />
                 </button>
               </div>
             </div>
@@ -960,11 +963,13 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
           <button
             onClick={() => setTransformOpen(o => { localStorage.setItem('openvj-insp-transform', String(!o)); return !o })}
             title="Transform — flip, rotate, zoom"
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-gray-300 hover:text-gray-100 transition-colors cursor-pointer"
+            className={`w-full flex items-center gap-2.5 px-4 py-3 text-xs font-semibold uppercase tracking-wide transition-all cursor-pointer border-l-2 ${
+              transformOpen ? 'border-[#d4f542]/60 bg-gray-800/50 text-white' : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/30'
+            }`}
           >
             <IconChevron open={transformOpen} />
-            <span className="uppercase tracking-wider font-medium">Transform</span>
-            {hasTfm && <span className="ml-auto w-1.5 h-1.5 bg-blue-400 rounded-full" />}
+            <span>Transform</span>
+            {hasTfm && <span className="ml-auto w-2 h-2 bg-[#d4f542]/80 rounded-full" />}
           </button>
           {transformOpen && (
             <div className="px-3 pb-4 space-y-4">
@@ -976,13 +981,13 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
                     onClick={() => update({ flipH: !flipH })}
                     disabled={surface.locked}
                     title="Mirror image left ↔ right"
-                    className={`flex-1 py-1 text-xs rounded transition-colors cursor-pointer disabled:opacity-40 ${flipH ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                    className={`flex-1 py-1 text-xs rounded transition-colors cursor-pointer disabled:opacity-40 ${flipH ? 'bg-gray-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
                   >⟷ Horizontal</button>
                   <button
                     onClick={() => update({ flipV: !flipV })}
                     disabled={surface.locked}
                     title="Mirror image top ↔ bottom"
-                    className={`flex-1 py-1 text-xs rounded transition-colors cursor-pointer disabled:opacity-40 ${flipV ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                    className={`flex-1 py-1 text-xs rounded transition-colors cursor-pointer disabled:opacity-40 ${flipV ? 'bg-gray-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
                   >↕ Vertical</button>
                 </div>
               </div>
@@ -1001,11 +1006,13 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
           <button
             onClick={() => setFxOpen(o => { localStorage.setItem('openvj-insp-fx', String(!o)); return !o })}
             title="FX — warp, RGB split, pixelate, vignette, edge blend"
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-gray-300 hover:text-gray-100 transition-colors cursor-pointer"
+            className={`w-full flex items-center gap-2.5 px-4 py-3 text-xs font-semibold uppercase tracking-wide transition-all cursor-pointer border-l-2 ${
+              fxOpen ? 'border-[#d4f542]/60 bg-gray-800/50 text-white' : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/30'
+            }`}
           >
             <IconChevron open={fxOpen} />
-            <span className="uppercase tracking-wider font-medium">FX</span>
-            {hasFx && <span className="ml-auto w-1.5 h-1.5 bg-orange-400 rounded-full" />}
+            <span>FX</span>
+            {hasFx && <span className="ml-auto w-2 h-2 bg-orange-400 rounded-full" />}
           </button>
           {fxOpen && (
             <div className="px-3 pb-4 space-y-4">
@@ -1049,11 +1056,13 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
           <button
             onClick={() => setMaskOpen(o => { localStorage.setItem('openvj-insp-mask', String(!o)); return !o })}
             title="Mask — shape-based transparency overlay"
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-gray-300 hover:text-gray-100 transition-colors cursor-pointer"
+            className={`w-full flex items-center gap-2.5 px-4 py-3 text-xs font-semibold uppercase tracking-wide transition-all cursor-pointer border-l-2 ${
+              maskOpen ? 'border-[#d4f542]/60 bg-gray-800/50 text-white' : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/30'
+            }`}
           >
             <IconChevron open={maskOpen} />
-            <span className="uppercase tracking-wider font-medium">Mask</span>
-            {hasMask && <span className="ml-auto w-1.5 h-1.5 bg-amber-400 rounded-full" />}
+            <span>Mask</span>
+            {hasMask && <span className="ml-auto w-2 h-2 bg-amber-400 rounded-full" />}
           </button>
           {maskOpen && (
             <div className="px-3 pb-4 space-y-4">
@@ -1173,10 +1182,12 @@ function SurfaceInspector({ surface, onEditShader }: InspectorProps) {
           <button
             onClick={() => setCornersOpen(o => { localStorage.setItem('openvj-insp-corners', String(!o)); return !o })}
             title="Fine-tune corner positions numerically"
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-gray-300 hover:text-gray-100 transition-colors cursor-pointer"
+            className={`w-full flex items-center gap-2.5 px-4 py-3 text-xs font-semibold uppercase tracking-wide transition-all cursor-pointer border-l-2 ${
+              cornersOpen ? 'border-[#d4f542]/60 bg-gray-800/50 text-white' : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/30'
+            }`}
           >
             <IconChevron open={cornersOpen} />
-            <span className="uppercase tracking-wider font-medium">Corners</span>
+            <span>Corners</span>
           </button>
           {cornersOpen && (
             <div className="px-3 pb-3">
@@ -1291,7 +1302,7 @@ function SurfaceItem({ surface, index, isActive, onSelect, onEditShader, onDragS
       {/* Active indicator dot */}
       <div
         className={`w-1.5 h-1.5 rounded-full flex-shrink-0 transition-colors ${
-          isActive ? 'bg-blue-400' : 'bg-gray-600 group-hover:bg-gray-400'
+          isActive ? 'bg-[#d4f542]' : 'bg-gray-600 group-hover:bg-gray-400'
         }`}
       />
 
@@ -1310,7 +1321,7 @@ function SurfaceItem({ surface, index, isActive, onSelect, onEditShader, onDragS
             }}
             onClick={(e) => e.stopPropagation()}
             autoFocus
-            className="w-full bg-gray-900 border border-blue-500 rounded px-1.5 py-0.5 text-xs text-gray-100 outline-none"
+            className="w-full bg-gray-900 border border-gray-600 rounded px-1.5 py-0.5 text-xs text-gray-100 outline-none"
           />
         ) : (
           <span

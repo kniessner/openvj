@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { LogoMark } from './components/Logo'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Grid } from '@react-three/drei'
 import { SurfaceMesh } from './components/Surface'
@@ -1049,7 +1050,7 @@ function SnapControls() {
             onClick={() => setSnapGrid(s)}
             className={`px-2 py-1 text-xs transition-colors cursor-pointer ${
               snapGrid === s
-                ? 'bg-blue-600 text-white'
+                ? 'bg-gray-600 text-white'
                 : 'text-gray-500 hover:text-gray-200 hover:bg-gray-700/60'
             }`}
             title={s === 0 ? 'No snapping' : `Snap to ${s} world units`}
@@ -1442,7 +1443,7 @@ export default function App() {
     >
       {/* Global drag overlay */}
       {isDragOver && (
-        <div className="absolute inset-0 z-50 bg-blue-950/80 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 z-50 bg-gray-950/85 backdrop-blur-sm flex items-center justify-center pointer-events-none">
           <div className="text-center">
             <svg className="w-16 h-16 mx-auto mb-3 text-[#d4f542]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
@@ -1457,18 +1458,13 @@ export default function App() {
       {/* ── Header ── */}
       <header className="h-11 bg-gray-900 border-b border-gray-700/60 flex items-center justify-between px-4 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-violet-600 rounded-md flex items-center justify-center flex-shrink-0">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
-            </svg>
-          </div>
-          <span className="font-semibold text-sm text-gray-100">OpenVJ</span>
+          <LogoMark size={28} className="flex-shrink-0" />
+          <span className="font-bold text-sm text-white tracking-tight">Open<span className="text-[#d4f542]">VJ</span></span>
           <span className="text-xs text-gray-600 px-1.5 py-0.5 bg-gray-800 rounded font-mono">v0.5.0</span>
 
           {activeSurface && (
             <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#d4f542]/10 border border-[#d4f542]/30 rounded text-xs text-[#d4f542]">
-              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
+              <div className="w-1.5 h-1.5 bg-[#d4f542] rounded-full" />
               {activeSurface.name}
               {activeAsset && (
                 <span className="text-[#d4f542]">· {activeAsset.name}</span>
@@ -1726,7 +1722,7 @@ export default function App() {
             >
               {/* Top-left: branding */}
               <div className="absolute top-5 left-5 flex items-center gap-2.5">
-                <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-violet-600 rounded flex items-center justify-center">
+                <div className="w-6 h-6 bg-gray-700 rounded flex items-center justify-center">
                   <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                       d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4" />

@@ -132,7 +132,7 @@ export const P5JsEditor: React.FC<P5JsEditorProps> = ({ className = '' }) => {
         <p className="mb-4">No p5.js layer selected</p>
         <button
           onClick={() => addLayer()}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
+          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white"
         >
           + Create New p5.js Layer
         </button>
@@ -180,7 +180,7 @@ export const P5JsEditor: React.FC<P5JsEditorProps> = ({ className = '' }) => {
         
         <button
           onClick={() => activeLayerId && updateSketchCode(activeLayerId, code)}
-          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+          className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm"
           title="Ctrl+Enter to Run"
         >
           ▶ Run
