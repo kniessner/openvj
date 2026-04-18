@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  renderUji, UjiAnimator, UjiParams, UjiAudioMod,
+  renderUji, UjiAnimator, UjiParams, UjiAudioMod, UjiBlendMode,
   DEFAULT_UJI_PARAMS, DEFAULT_AUDIO_MOD, UJI_PRESETS,
 } from '../lib/ujiRenderer'
 import { useAssetStore, Asset } from '../stores/assetStore'
@@ -75,8 +75,26 @@ const SHAPES = [
   { v: 3, label: 'Triangle' }, { v: 4, label: 'Line' },
 ] as const
 
-const STATIC_PRESETS  = ['Galaxy', 'Helix', 'Vortex', 'Geometric', 'Storm', 'Triangle']
-const AUDIO_PRESETS   = ['Beat Pulse', 'Bass Bloom', 'Freq Web']
+const LINE_CAPS: { v: UjiParams['lineCap']; label: string }[] = [
+  { v: 'auto', label: 'Auto' }, { v: 'butt', label: 'Flat' },
+  { v: 'round', label: 'Round' }, { v: 'square', label: 'Sq' },
+]
+
+const BLEND_MODES: { v: UjiBlendMode; label: string }[] = [
+  { v: 'source-over', label: 'Normal'   },
+  { v: 'screen',      label: 'Screen'   },
+  { v: 'lighter',     label: 'Add'      },
+  { v: 'overlay',     label: 'Overlay'  },
+  { v: 'multiply',    label: 'Multiply' },
+  { v: 'color-dodge', label: 'Dodge'    },
+  { v: 'difference',  label: 'Diff'     },
+  { v: 'exclusion',   label: 'Excl'     },
+  { v: 'darken',      label: 'Darken'   },
+  { v: 'lighten',     label: 'Lighten'  },
+]
+
+const STATIC_PRESETS = ['Galaxy', 'Helix', 'Vortex', 'Geometric', 'Storm', 'Triangle', 'Neon Bloom', 'Off-Center', 'Spiral Reveal']
+const AUDIO_PRESETS  = ['Beat Pulse', 'Bass Bloom', 'Freq Web', 'Glow Storm']
 
 interface UjiGeneratorProps {
   asset: Asset | null
@@ -264,6 +282,10 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
               <Slider label="Acceleration"    value={params.rotationSpeedup} min={-0.03} max={0.03} step={0.001} onChange={(v) => setParam('rotationSpeedup', v)} />
               <Slider label="Period (–1=off)" value={params.rotationPeriod}  min={-1}    max={500}  step={1}     onChange={(v) => setParam('rotationPeriod', v)}
                 format={(v) => v < 0 ? 'off' : v.toFixed(0)} />
+              <Slider label="Stop after"      value={params.rotationUntil ?? -1} min={-1} max={500} step={1}    onChange={(v) => setParam('rotationUntil', v)}
+                format={(v) => v < 0 ? 'never' : v.toFixed(0)} />
+              <Slider label="Pivot X"         value={params.rotationOriginH ?? 0.5} min={0} max={1} step={0.01} onChange={(v) => setParam('rotationOriginH', v)} />
+              <Slider label="Pivot Y"         value={params.rotationOriginV ?? 0.5} min={0} max={1} step={0.01} onChange={(v) => setParam('rotationOriginV', v)} />
             </Section>
 
             <Section title="Motion">
@@ -272,6 +294,8 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
               <Slider label="Translation H" value={params.translationH} min={-5}    max={5}     step={0.1}    onChange={(v) => setParam('translationH', v)} />
               <Slider label="Translation V" value={params.translationV} min={-5}    max={5}     step={0.1}    onChange={(v) => setParam('translationV', v)} />
               <Slider label="Jitter"        value={params.jitter}       min={0}     max={10}    step={0.1}    onChange={(v) => setParam('jitter', v)} />
+              <Slider label="Reveal speed"  value={params.revealSpeed ?? -1} min={-1} max={60} step={0.5}    onChange={(v) => setParam('revealSpeed', v)}
+                format={(v) => v < 0 ? 'instant' : v.toFixed(1)} />
             </Section>
 
             <Section title="Waviness">
@@ -287,10 +311,44 @@ export function UjiGenerator({ asset, onClose }: UjiGeneratorProps) {
               <Slider label="Hue shift/iter"  value={params.hueshiftSpeed}  min={-10} max={10}  step={0.1}   onChange={(v) => setParam('hueshiftSpeed', v)} />
               <Slider label="Seg. rotation"   value={params.segmentRotation} min={0}  max={90}  step={1}     onChange={(v) => setParam('segmentRotation', v)} format={(v) => v + '°'} />
               <Slider label="Skip chance"     value={params.skipChance}     min={0}   max={0.4} step={0.005} onChange={(v) => setParam('skipChance', v)} />
+              <Slider label="Glow"            value={params.shadowBlur ?? 0} min={0}  max={30}  step={0.5}   onChange={(v) => setParam('shadowBlur', v)}
+                accent="#f0abfc" />
               <ColorInput label="Line color" r={params.lineR} g={params.lineG} b={params.lineB}
                 onChange={(r,g,b) => setParams((p) => ({ ...p, lineR: r, lineG: g, lineB: b }))} />
               <ColorInput label="Background" r={params.bgR} g={params.bgG} b={params.bgB}
                 onChange={(r,g,b) => setParams((p) => ({ ...p, bgR: r, bgG: g, bgB: b }))} />
+              {/* Blend mode */}
+              <div className="space-y-1.5">
+                <span className="text-xs text-gray-400">Blend mode</span>
+                <div className="grid grid-cols-5 gap-1">
+                  {BLEND_MODES.map(({ v, label }) => (
+                    <button key={v} onClick={() => setParam('blendMode', v)}
+                      className={`py-1 text-[10px] rounded border transition-colors cursor-pointer ${
+                        (params.blendMode ?? 'source-over') === v
+                          ? 'bg-fuchsia-600/25 border-fuchsia-500/50 text-fuchsia-300'
+                          : 'bg-gray-800 border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-600'
+                      }`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Line cap */}
+              <div className="space-y-1.5">
+                <span className="text-xs text-gray-400">Line cap</span>
+                <div className="grid grid-cols-4 gap-1">
+                  {LINE_CAPS.map(({ v, label }) => (
+                    <button key={v} onClick={() => setParam('lineCap', v)}
+                      className={`py-1.5 text-xs rounded border transition-colors cursor-pointer ${
+                        (params.lineCap ?? 'auto') === v
+                          ? 'bg-pink-600/20 border-pink-500/50 text-pink-300'
+                          : 'bg-gray-800 border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-600'
+                      }`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </Section>
 
             <Section title="Animation"

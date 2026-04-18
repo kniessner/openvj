@@ -5,6 +5,11 @@
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export type UjiBlendMode =
+  | 'source-over' | 'screen'   | 'multiply'   | 'overlay'
+  | 'lighter'     | 'darken'   | 'lighten'     | 'difference'
+  | 'exclusion'   | 'color-dodge' | 'color-burn' | 'hard-light'
+
 export interface UjiAudioMod {
   rotByLow: number        // deg/iter added per unit of bass (–4 to 4)
   rotByBeat: number       // deg/iter added per beat pulse (–6 to 6)
@@ -30,7 +35,10 @@ export interface UjiParams {
   // Rotation
   rotationSpeed: number
   rotationSpeedup: number
-  rotationPeriod: number  // –1 = off
+  rotationPeriod: number    // –1 = off
+  rotationUntil?: number    // –1 = always; ≥0 = freeze rotation after N iters
+  rotationOriginH?: number  // 0–1, default 0.5 (canvas center)
+  rotationOriginV?: number  // 0–1, default 0.5 (canvas center)
 
   // Motion
   expansionH: number
@@ -40,14 +48,15 @@ export interface UjiParams {
 
   // Texture
   jitter: number
-  wavinessPH: number      // –1 = off
+  wavinessPH: number        // –1 = off
   wavinessAH: number
-  wavinessPV: number      // –1 = off
+  wavinessPV: number        // –1 = off
   wavinessAV: number
 
   // Visibility
   skipChance: number
   segmentRotation: number
+  revealSpeed?: number      // –1 = instant (all segs); >0 = segs added per iter
 
   // Appearance
   thickness: number
@@ -55,6 +64,9 @@ export interface UjiParams {
   lineOpacity: number
   hueshiftSpeed: number
   bgR: number; bgG: number; bgB: number
+  blendMode?: UjiBlendMode
+  shadowBlur?: number       // 0 = off; >0 = glow radius at 512px canvas
+  lineCap?: 'auto' | 'butt' | 'round' | 'square'
 
   // Animation
   animate: boolean          // incremental frame-by-frame mode
@@ -69,12 +81,14 @@ export interface UjiParams {
 export const DEFAULT_UJI_PARAMS: UjiParams = {
   shape: 1, segments: 600, radius: 190, iterations: 250,
   rotationSpeed: 1.5, rotationSpeedup: 0, rotationPeriod: -1,
+  rotationUntil: -1, rotationOriginH: 0.5, rotationOriginV: 0.5,
   expansionH: 1.0005, expansionV: 1.0005,
   translationH: 0, translationV: 0,
   jitter: 2, wavinessPH: -1, wavinessAH: 0, wavinessPV: -1, wavinessAV: 0,
-  skipChance: 0, segmentRotation: 0,
+  skipChance: 0, segmentRotation: 0, revealSpeed: -1,
   thickness: 0.8, lineR: 80, lineG: 140, lineB: 255, lineOpacity: 0.25,
   hueshiftSpeed: 0.8, bgR: 5, bgG: 0, bgB: 15,
+  blendMode: 'source-over', shadowBlur: 0, lineCap: 'auto',
   animate: false, itersPerFrame: 3, audioMod: { ...DEFAULT_AUDIO_MOD },
 }
 
@@ -135,6 +149,41 @@ export const UJI_PRESETS: Record<string, UjiParams> = {
     hueshiftSpeed: 1.5, bgR: 0, bgG: 5, bgB: 0, ...STATIC,
   },
 
+  // ── New feature showcase presets ───────────────────────────────────────────
+
+  'Neon Bloom': {
+    shape: 1, segments: 1000, radius: 175, iterations: 300,
+    rotationSpeed: 1.2, rotationSpeedup: 0, rotationPeriod: 150,
+    expansionH: 1.0003, expansionV: 1.0003, translationH: 0, translationV: 0,
+    jitter: 1.5, wavinessPH: -1, wavinessAH: 0, wavinessPV: -1, wavinessAV: 0,
+    skipChance: 0, segmentRotation: 0,
+    thickness: 0.9, lineR: 0, lineG: 180, lineB: 255, lineOpacity: 0.28,
+    hueshiftSpeed: 1.2, bgR: 0, bgG: 0, bgB: 0,
+    blendMode: 'screen', shadowBlur: 8, lineCap: 'round', ...STATIC,
+  },
+
+  'Off-Center': {
+    shape: 1, segments: 800, radius: 150, iterations: 250,
+    rotationSpeed: 2.5, rotationSpeedup: 0, rotationPeriod: -1,
+    expansionH: 1.0, expansionV: 1.0, translationH: 0, translationV: 0,
+    rotationOriginH: 0.28, rotationOriginV: 0.38,
+    jitter: 1.5, wavinessPH: -1, wavinessAH: 0, wavinessPV: -1, wavinessAV: 0,
+    skipChance: 0, segmentRotation: 0,
+    thickness: 0.7, lineR: 255, lineG: 120, lineB: 20, lineOpacity: 0.32,
+    hueshiftSpeed: 1.5, bgR: 0, bgG: 0, bgB: 4, ...STATIC,
+  },
+
+  'Spiral Reveal': {
+    shape: 4, segments: 1000, radius: 200, iterations: 400,
+    rotationSpeed: 1.8, rotationSpeedup: 0.0008, rotationPeriod: -1,
+    expansionH: 1.0, expansionV: 1.0, translationH: 0, translationV: 0,
+    jitter: 0.5, wavinessPH: -1, wavinessAH: 0, wavinessPV: -1, wavinessAV: 0,
+    skipChance: 0, segmentRotation: 0, revealSpeed: 3,
+    thickness: 0.65, lineR: 80, lineG: 210, lineB: 255, lineOpacity: 0.42,
+    hueshiftSpeed: 0.6, bgR: 0, bgG: 2, bgB: 8,
+    blendMode: 'screen', ...STATIC,
+  },
+
   // ── Audio-reactive animated presets ────────────────────────────────────────
 
   'Beat Pulse': {
@@ -171,6 +220,19 @@ export const UJI_PRESETS: Record<string, UjiParams> = {
     hueshiftSpeed: 2, bgR: 2, bgG: 0, bgB: 8,
     animate: true, itersPerFrame: 4,
     audioMod: { rotByLow: 0, rotByBeat: 3.0, jitterByHigh: 5.0, jitterByBeat: 2.0, expansionByLow: 0, hueshiftByMid: 5.0, clearOnBeat: false },
+  },
+
+  'Glow Storm': {
+    shape: 1, segments: 900, radius: 185, iterations: 250,
+    rotationSpeed: 2.5, rotationSpeedup: 0, rotationPeriod: 80,
+    expansionH: 0.9992, expansionV: 0.9992, translationH: 0, translationV: 0,
+    jitter: 2, wavinessPH: -1, wavinessAH: 0, wavinessPV: -1, wavinessAV: 0,
+    skipChance: 0.03, segmentRotation: 0,
+    thickness: 0.8, lineR: 255, lineG: 80, lineB: 200, lineOpacity: 0.25,
+    hueshiftSpeed: 2, bgR: 0, bgG: 0, bgB: 0,
+    blendMode: 'screen', shadowBlur: 6, lineCap: 'round',
+    animate: true, itersPerFrame: 3,
+    audioMod: { rotByLow: 2.0, rotByBeat: 4.0, jitterByHigh: 2.0, jitterByBeat: 3.0, expansionByLow: 0.002, hueshiftByMid: 5.0, clearOnBeat: true },
   },
 }
 
@@ -249,14 +311,13 @@ function initShape(
 
 /**
  * Pixel scale factor relative to the reference 512px canvas.
- * Used so all pixel-space params (radius, jitter, waviness, etc.) scale
- * proportionally when rendering into a larger texture canvas.
+ * Scales all pixel-space params proportionally when rendering larger textures.
  */
 function getPixelScale(canvas: HTMLCanvasElement): number {
   return canvas.width / 512
 }
 
-/** Draw one iteration onto an already-transformed point set. */
+/** Draw one iteration onto a canvas. N controls how many segments are drawn. */
 function drawIteration(
   ctx: CanvasRenderingContext2D,
   px: Float32Array, py: Float32Array,
@@ -264,9 +325,21 @@ function drawIteration(
   scale = 1,
 ) {
   const [lr, lg, lb] = hueShiftRgb(params.lineR, params.lineG, params.lineB, hue)
+  const blendMode  = params.blendMode  ?? 'source-over'
+  const shadowBlur = params.shadowBlur ?? 0
+  const capMode    = params.lineCap    ?? 'auto'
+
+  ctx.globalCompositeOperation = blendMode as GlobalCompositeOperation
   ctx.strokeStyle = `rgba(${lr},${lg},${lb},${params.lineOpacity})`
   ctx.lineWidth   = params.thickness * scale
-  ctx.lineCap     = params.thickness * scale >= 1 ? 'round' : 'butt'
+  ctx.lineCap     = capMode === 'auto'
+    ? (params.thickness * scale >= 1 ? 'round' : 'butt')
+    : capMode
+
+  if (shadowBlur > 0) {
+    ctx.shadowBlur  = shadowBlur * scale
+    ctx.shadowColor = `rgba(${lr},${lg},${lb},0.9)`
+  }
 
   ctx.beginPath()
   if (params.segmentRotation !== 0) {
@@ -290,6 +363,9 @@ function drawIteration(
     }
   }
   ctx.stroke()
+
+  if (shadowBlur > 0) ctx.shadowBlur = 0
+  ctx.globalCompositeOperation = 'source-over'
 }
 
 // ─── Static one-shot renderer ────────────────────────────────────────────────
@@ -305,8 +381,13 @@ export function renderUji(
   quality: 'preview' | 'full' = 'full',
 ): void {
   const W = canvas.width, H = canvas.height
-  const S = getPixelScale(canvas)   // scale all pixel-space params proportionally
+  const S = getPixelScale(canvas)
   const cx = W / 2, cy = H / 2
+  const ox = W * (params.rotationOriginH ?? 0.5)
+  const oy = H * (params.rotationOriginV ?? 0.5)
+  const rotationUntil = params.rotationUntil ?? -1
+  const revealSpeed   = params.revealSpeed   ?? -1
+
   const N = quality === 'preview'
     ? Math.max(80,  Math.round(params.segments   * 0.5))
     : params.segments
@@ -329,10 +410,16 @@ export function renderUji(
   }
 
   let hue = 0
+  let revealedCount = revealSpeed <= 0 ? N : 0
+
   for (let n = 0; n < iters; n++) {
-    let angle = params.rotationSpeed * (Math.PI / 180)
-    if (params.rotationSpeedup !== 0) angle *= (1 + params.rotationSpeedup * n)
-    if (params.rotationPeriod > 0)   angle *= Math.sin(2 * Math.PI * n / params.rotationPeriod)
+    // Rotation angle — frozen after rotationUntil iters
+    let angle = 0
+    if (rotationUntil < 0 || n < rotationUntil) {
+      angle = params.rotationSpeed * (Math.PI / 180)
+      if (params.rotationSpeedup !== 0) angle *= (1 + params.rotationSpeedup * n)
+      if (params.rotationPeriod  >  0) angle *= Math.sin(2 * Math.PI * n / params.rotationPeriod)
+    }
     const cosA = Math.cos(angle), sinA = Math.sin(angle)
 
     for (let i = 0; i < N; i++) {
@@ -340,15 +427,22 @@ export function renderUji(
       if (params.jitter > 0) { x += (rng() - 0.5) * params.jitter * S; y += (rng() - 0.5) * params.jitter * S }
       if (params.wavinessPH > 0) x += params.wavinessAH * S * Math.sin(2 * Math.PI * i / params.wavinessPH)
       if (params.wavinessPV > 0) y += params.wavinessAV * S * Math.sin(2 * Math.PI * i / params.wavinessPV)
-      x = cx + (x - cx) * params.expansionH; y = cy + (y - cy) * params.expansionV
-      x += params.translationH * S; y += params.translationV * S
-      const dx = x - cx, dy = y - cy
-      px[i] = cx + dx*cosA - dy*sinA
-      py[i] = cy + dx*sinA + dy*cosA
+      // Expansion always relative to canvas centre
+      x = cx + (x - cx) * params.expansionH
+      y = cy + (y - cy) * params.expansionV
+      x += params.translationH * S
+      y += params.translationV * S
+      // Rotation around custom pivot (defaults to canvas centre)
+      const dx = x - ox, dy = y - oy
+      px[i] = ox + dx*cosA - dy*sinA
+      py[i] = oy + dx*sinA + dy*cosA
     }
 
+    if (revealSpeed > 0) revealedCount = Math.min(N, revealedCount + revealSpeed)
+    const drawN = revealSpeed <= 0 ? N : Math.floor(revealedCount)
+
     hue += params.hueshiftSpeed
-    drawIteration(ctx, px, py, N, hue, params, rng, S)
+    if (drawN > 1) drawIteration(ctx, px, py, drawN, hue, params, rng, S)
   }
 }
 
@@ -366,9 +460,9 @@ export class UjiAnimator {
   private py!: Float32Array
   private hue = 0
   private iteration = 0
+  private revealedCount = 0
   private rngState: number
   private _prevBeat = 0
-  /** Pixel scale: canvas.width / 512. Scales all pixel-space params proportionally. */
   private _S = 1
 
   constructor(canvas: HTMLCanvasElement, params: UjiParams) {
@@ -384,7 +478,6 @@ export class UjiAnimator {
     return this.rngState / 0x100000000
   }
 
-  /** Re-initialise point arrays and clear canvas. */
   init() {
     const { canvas, ctx, params } = this
     this._S = getPixelScale(canvas)
@@ -393,33 +486,33 @@ export class UjiAnimator {
     this.py = new Float32Array(N)
     this.hue = 0
     this.iteration = 0
+    this.revealedCount = (params.revealSpeed ?? -1) <= 0 ? N : 0
     initShape(this.px, this.py, canvas.width/2, canvas.height/2, params.radius * this._S, params.shape, N)
     ctx.fillStyle = `rgb(${params.bgR},${params.bgG},${params.bgB})`
     ctx.fillRect(0, 0, canvas.width, canvas.height)
   }
 
-  /**
-   * Process `params.itersPerFrame` iterations, modulated by live audio levels.
-   * Call once per animation frame.
-   */
   step(low = 0, mid = 0, high = 0, beat = 0): void {
     const { ctx, canvas, params } = this
     const N  = params.segments
     const cx = canvas.width  / 2
     const cy = canvas.height / 2
+    const ox = canvas.width  * (params.rotationOriginH ?? 0.5)
+    const oy = canvas.height * (params.rotationOriginV ?? 0.5)
     const am = params.audioMod ?? DEFAULT_AUDIO_MOD
     const itersPerFrame = params.itersPerFrame ?? 3
+    const rotationUntil = params.rotationUntil ?? -1
+    const revealSpeed   = params.revealSpeed   ?? -1
 
-    // Guard: if segments changed since last frame, reallocate and restart
     if (this.px.length !== N) {
       this.px = new Float32Array(N)
       this.py = new Float32Array(N)
       initShape(this.px, this.py, cx, cy, params.radius * this._S, params.shape, N)
       this.hue = 0
       this.iteration = 0
+      this.revealedCount = revealSpeed <= 0 ? N : 0
     }
 
-    // Clear-on-beat: trigger on rising edge only
     if (am.clearOnBeat && beat > 0.85 && this._prevBeat <= 0.85) {
       ctx.fillStyle = `rgba(${params.bgR},${params.bgG},${params.bgB},0.55)`
       ctx.fillRect(0, 0, canvas.width, canvas.height)
@@ -429,45 +522,49 @@ export class UjiAnimator {
     for (let fi = 0; fi < itersPerFrame; fi++) {
       const n = this.iteration
 
-      // Audio-modulated parameters
-      const rotSpeed  = params.rotationSpeed + am.rotByLow * low + am.rotByBeat * beat
-      const jitter    = Math.max(0, params.jitter + am.jitterByHigh * high + am.jitterByBeat * beat)
-      const expH      = params.expansionH + am.expansionByLow * low
-      const expV      = params.expansionV + am.expansionByLow * low
+      const rotSpeed = params.rotationSpeed + am.rotByLow * low + am.rotByBeat * beat
+      const jitter   = Math.max(0, params.jitter + am.jitterByHigh * high + am.jitterByBeat * beat)
+      const expH     = params.expansionH + am.expansionByLow * low
+      const expV     = params.expansionV + am.expansionByLow * low
 
-      // Rotation angle for this iteration
-      let angle = rotSpeed * (Math.PI / 180)
-      if (params.rotationSpeedup !== 0) angle *= (1 + params.rotationSpeedup * n)
-      if (params.rotationPeriod  >  0) angle *= Math.sin(2 * Math.PI * n / params.rotationPeriod)
+      let angle = 0
+      if (rotationUntil < 0 || n < rotationUntil) {
+        angle = rotSpeed * (Math.PI / 180)
+        if (params.rotationSpeedup !== 0) angle *= (1 + params.rotationSpeedup * n)
+        if (params.rotationPeriod  >  0) angle *= Math.sin(2 * Math.PI * n / params.rotationPeriod)
+      }
       const cosA = Math.cos(angle), sinA = Math.sin(angle)
 
-      // Transform points
       const S = this._S
       for (let i = 0; i < N; i++) {
         let x = this.px[i], y = this.py[i]
         if (jitter > 0) { x += (this.rng() - 0.5) * jitter * S; y += (this.rng() - 0.5) * jitter * S }
         if (params.wavinessPH > 0) x += params.wavinessAH * S * Math.sin(2 * Math.PI * i / params.wavinessPH)
         if (params.wavinessPV > 0) y += params.wavinessAV * S * Math.sin(2 * Math.PI * i / params.wavinessPV)
-        x = cx + (x - cx) * expH; y = cy + (y - cy) * expV
-        x += params.translationH * S; y += params.translationV * S
-        const dx = x - cx, dy = y - cy
-        this.px[i] = cx + dx*cosA - dy*sinA
-        this.py[i] = cy + dx*sinA + dy*cosA
+        x = cx + (x - cx) * expH
+        y = cy + (y - cy) * expV
+        x += params.translationH * S
+        y += params.translationV * S
+        const dx = x - ox, dy = y - oy
+        this.px[i] = ox + dx*cosA - dy*sinA
+        this.py[i] = oy + dx*sinA + dy*cosA
       }
 
-      // Hue + audio mid modulation
+      if (revealSpeed > 0) this.revealedCount = Math.min(N, this.revealedCount + revealSpeed)
+      const drawN = revealSpeed <= 0 ? N : Math.floor(this.revealedCount)
+
       this.hue += params.hueshiftSpeed + am.hueshiftByMid * mid
-      drawIteration(ctx, this.px, this.py, N, this.hue, params, () => this.rng(), S)
+      if (drawN > 1) drawIteration(ctx, this.px, this.py, drawN, this.hue, params, () => this.rng(), S)
 
       this.iteration++
 
-      // Cycle complete → soft reset (reuse existing arrays)
       if (this.iteration >= params.iterations) {
         ctx.fillStyle = `rgba(${params.bgR},${params.bgG},${params.bgB},0.65)`
         ctx.fillRect(0, 0, canvas.width, canvas.height)
         initShape(this.px, this.py, cx, cy, params.radius * this._S, params.shape, N)
         this.hue = 0
         this.iteration = 0
+        this.revealedCount = revealSpeed <= 0 ? N : 0
       }
     }
   }
