@@ -177,6 +177,7 @@ export function SurfaceMesh({ surface, presentMode = false }: SurfaceMeshProps) 
   // p5.js layer support - get layer if assetId matches a p5.js layer
   const p5Layers = useP5JsStore((s) => s.layers)
   const p5Sources = useP5JsStore((s) => s.sources)
+  const getOrCreateSource = useP5JsStore((s) => s.getOrCreateSource)
   const p5Layer = p5Layers.find(l => l.id === surface.assetId)
 
   // Rebuild polygon geometry only when corners change
@@ -229,15 +230,18 @@ export function SurfaceMesh({ surface, presentMode = false }: SurfaceMeshProps) 
       const source = p5Sources.get(p5Layer.id)
       if (source) {
         material.setTexture(source.getTexture())
-        return
+      } else {
+        // Source missing after page reload — recreate it; store update re-triggers this effect
+        getOrCreateSource(p5Layer.id)
       }
+      return
     }
     // Regular asset
     if (!asset) { material.setTexture(canvasTexture); return }
     assetTextureManager.load(asset).then((tex) => {
       material.setTexture(tex ?? canvasTexture)
     })
-  }, [asset, p5Layer, p5Sources, surface.assetId, material, canvasTexture])
+  }, [asset, p5Layer, p5Sources, surface.assetId, material, canvasTexture, getOrCreateSource])
 
   useEffect(() => {
     material.setBlendMode(surface.blendMode ?? 'normal')

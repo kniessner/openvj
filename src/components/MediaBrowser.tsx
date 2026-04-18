@@ -11,6 +11,7 @@ import {
 import { useAssetStore, Asset, AssetType, DEFAULT_SHADER, BUILTIN_ASSETS } from '../stores/assetStore'
 import { useSurfaceStore } from '../stores/surfaceStore'
 import { assetTextureManager } from '../lib/assetTextureManager'
+import { audioEngine } from '../lib/audioEngine'
 
 // ─── Type icons ───────────────────────────────────────────────────────────────
 
@@ -123,8 +124,115 @@ export function ShaderEditor({ asset, onClose }: ShaderEditorProps) {
   const [aiKey, setAiKey] = useState(() => localStorage.getItem('openvj-anthropic-key') ?? '')
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
   const preRef = useRef<HTMLPreElement>(null)
   const taRef  = useRef<HTMLTextAreaElement>(null)
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null)
+
+  // Live preview rendering
+  const previewRendererRef = useRef<WebGLRenderer | null>(null)
+  const previewMatRef      = useRef<ShaderMaterial | null>(null)
+  const previewRafRef      = useRef<number>(0)
+  const previewSceneRef    = useRef<Scene | null>(null)
+  const previewCamRef      = useRef<OrthographicCamera | null>(null)
+  const previewGeoRef      = useRef<PlaneGeometry | null>(null)
+  const previewT0Ref       = useRef(performance.now())
+
+  // Set up preview renderer once on mount
+  useEffect(() => {
+    const canvas = previewCanvasRef.current
+    if (!canvas) return
+    const SIZE = 256
+    canvas.width = SIZE; canvas.height = SIZE
+
+    const renderer = new WebGLRenderer({ canvas, antialias: false })
+    renderer.setSize(SIZE, SIZE, false)
+    previewRendererRef.current = renderer
+
+    const scene = new Scene(); previewSceneRef.current = scene
+    const camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1); previewCamRef.current = camera
+    const geo = new PlaneGeometry(2, 2); previewGeoRef.current = geo
+
+    const fragCode = asset.shaderCode ?? DEFAULT_SHADER
+    let mat: ShaderMaterial
+    try {
+      mat = new ShaderMaterial({
+        vertexShader: `void main(){gl_Position=vec4(position.xy,0.0,1.0);}`,
+        fragmentShader: `precision highp float;\nuniform float uTime;\nuniform vec2 uResolution;\nuniform float uAudioLow;\nuniform float uAudioMid;\nuniform float uAudioHigh;\nuniform float uBeat;\n${fragCode}`,
+        uniforms: {
+          uTime:       { value: 0 },
+          uResolution: { value: new Vector2(SIZE, SIZE) },
+          uAudioLow:   { value: 0 }, uAudioMid: { value: 0 },
+          uAudioHigh:  { value: 0 }, uBeat: { value: 0 },
+        },
+      })
+      previewMatRef.current = mat
+      scene.add(new Mesh(geo, mat))
+      setPreviewError(null)
+    } catch (e) {
+      setPreviewError(e instanceof Error ? e.message : 'Shader error')
+      mat = new ShaderMaterial({ vertexShader: `void main(){}`, fragmentShader: `void main(){gl_FragColor=vec4(0.0);}` })
+      scene.add(new Mesh(geo, mat))
+    }
+
+    previewT0Ref.current = performance.now()
+
+    const tick = () => {
+      previewRafRef.current = requestAnimationFrame(tick)
+      const m = previewMatRef.current
+      if (m) {
+        m.uniforms.uTime.value = (performance.now() - previewT0Ref.current) / 1000
+        m.uniforms.uAudioLow.value  = audioEngine.low
+        m.uniforms.uAudioMid.value  = audioEngine.mid
+        m.uniforms.uAudioHigh.value = audioEngine.high
+        m.uniforms.uBeat.value      = audioEngine.beat
+      }
+      renderer.render(scene, camera)
+    }
+    previewRafRef.current = requestAnimationFrame(tick)
+
+    return () => {
+      cancelAnimationFrame(previewRafRef.current)
+      geo.dispose()
+      previewMatRef.current?.dispose()
+      renderer.dispose()
+      previewRendererRef.current = null
+      previewMatRef.current = null
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Recompile preview when code changes (debounced)
+  useEffect(() => {
+    const id = setTimeout(() => {
+      const scene = previewSceneRef.current
+      const geo = previewGeoRef.current
+      if (!scene || !geo || !previewRendererRef.current) return
+      previewMatRef.current?.dispose()
+      scene.clear()
+      try {
+        const mat = new ShaderMaterial({
+          vertexShader: `void main(){gl_Position=vec4(position.xy,0.0,1.0);}`,
+          fragmentShader: `precision highp float;\nuniform float uTime;\nuniform vec2 uResolution;\nuniform float uAudioLow;\nuniform float uAudioMid;\nuniform float uAudioHigh;\nuniform float uBeat;\n${code}`,
+          uniforms: {
+            uTime:       { value: 0 },
+            uResolution: { value: new Vector2(256, 256) },
+            uAudioLow:   { value: 0 }, uAudioMid: { value: 0 },
+            uAudioHigh:  { value: 0 }, uBeat: { value: 0 },
+          },
+        })
+        previewMatRef.current = mat
+        scene.add(new Mesh(geo, mat))
+        setPreviewError(null)
+      } catch (e) {
+        setPreviewError(e instanceof Error ? e.message : 'Shader error')
+        const fallback = new ShaderMaterial({ vertexShader: `void main(){}`, fragmentShader: `precision highp float;void main(){gl_FragColor=vec4(0.05,0.0,0.0,1.0);}` })
+        previewMatRef.current = fallback
+        scene.add(new Mesh(geo, fallback))
+      }
+    }, 600)
+    return () => clearTimeout(id)
+  }, [code])
 
   const highlighted = useMemo(() => highlightGLSL(code), [code])
 
@@ -282,6 +390,27 @@ export function ShaderEditor({ asset, onClose }: ShaderEditorProps) {
 
           {/* ── Right panel ── */}
           <div className="w-72 border-l border-gray-700/80 flex flex-col flex-shrink-0 bg-gray-900/40">
+
+            {/* Live preview */}
+            <div className="p-3 border-b border-gray-800 flex-shrink-0">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] text-gray-600 uppercase tracking-wider font-semibold">Live Preview</span>
+                <span className="flex items-center gap-1 text-[10px] text-green-500/60">
+                  <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse inline-block" />
+                  Running
+                </span>
+              </div>
+              <div className="relative rounded overflow-hidden border border-gray-800 bg-gray-950">
+                <canvas ref={previewCanvasRef}
+                  className="w-full block"
+                  style={{ aspectRatio: '1/1', imageRendering: 'auto' }} />
+                {previewError && (
+                  <div className="absolute inset-0 bg-red-950/80 flex items-center justify-center p-2">
+                    <p className="text-[9px] text-red-300 font-mono text-center leading-relaxed break-all">{previewError}</p>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* Uniform reference */}
             <div className="p-4 border-b border-gray-800 flex-shrink-0">

@@ -1,402 +1,255 @@
 /**
  * OpenVJ - p5.js Integration Engine
- * 
- * Provides p5.js sketch rendering as texture sources for OpenVJ surfaces.
- * Each sketch runs in "instance mode" and renders to an offscreen canvas,
- * which is then used as a Three.js texture.
+ *
+ * Runs p5.js sketches written in global mode (function setup / function draw)
+ * inside instance mode by using `with`-scope injection via new Function.
+ * Each source renders into an offscreen canvas that feeds a Three.js texture.
  */
 
-import p5 from 'p5';
-import * as THREE from 'three';
-import { audioEngine } from './audioEngine';
+import p5 from 'p5'
+import * as THREE from 'three'
+import { audioEngine } from './audioEngine'
 
-// Audio analysis interface matching OpenVJ's audio engine
-interface AudioUniforms {
-  uAudioLow: number;      // 0-255
-  uAudioMid: number;      // 0-255
-  uAudioHigh: number;     // 0-255
-  uAudioAvg: number;      // 0-255
-  uBeat: number;          // 0 or 1 (beat trigger)
-  uBpm: number;           // Detected BPM
-  uTime: number;          // Time since start
-  uDeltaTime: number;     // Frame delta
-}
-
-// MIDI state interface
-interface MidiState {
-  knobs: number[];        // CC values 0-127
-  buttons: boolean[];     // Note on/off
-}
-
-// Runtime context passed to sketches
-export interface P5JsContext {
-  audio: AudioUniforms;
-  midi: MidiState;
-  width: number;
-  height: number;
-}
-
-// Sketch configuration
 export interface P5JsSketch {
-  id: string;
-  name: string;
-  code: string;
-  mode: '2D' | 'WEBGL';
-  width: number;
-  height: number;
+  id: string
+  name: string
+  code: string
+  mode: '2D' | 'WEBGL'
+  width: number
+  height: number
 }
 
-/**
- * P5JsSource - Manages a p5.js instance as an OpenVJ texture source
- */
-export class P5JsSource {
-  private p5Instance: p5 | null = null;
-  private canvas: HTMLCanvasElement;
-  private texture: THREE.CanvasTexture;
-  private animationId: number | null = null;
-  private context: P5JsContext;
-  private isRunning: boolean = false;
-  private errorHandler: ((error: Error) => void) | null = null;
+export interface P5JsSource {
+  getTexture(): THREE.CanvasTexture
+  getCanvas(): HTMLCanvasElement
+  pause(): void
+  resume(): void
+  dispose(): void
+  updateMidi(cc: number, value: number): void
+  onError(handler: (error: Error) => void): void
+}
 
-  constructor(
-    private sketch: P5JsSketch,
-    private onTextureUpdate?: () => void
-  ) {
-    // Create offscreen canvas
-    this.canvas = document.createElement('canvas');
-    this.canvas.width = sketch.width;
-    this.canvas.height = sketch.height;
-    
-    // Initialize context with default values
-    this.context = {
+// ─── P5JsSourceImpl ──────────────────────────────────────────────────────────
+
+class P5JsSourceImpl implements P5JsSource {
+  private p5Instance: p5 | null = null
+  private container: HTMLDivElement
+  private canvas: HTMLCanvasElement       // our texture canvas (copied from p5 each frame)
+  private texture: THREE.CanvasTexture
+  private isRunning = false
+  private audioRafId: number | null = null
+  private errorHandler: ((e: Error) => void) | null = null
+
+  private audio = { low: 0, mid: 0, high: 0, avg: 0, beat: 0, bpm: 120 }
+  private midi = { knobs: new Array(128).fill(0) as number[] }
+
+  constructor(private sketch: P5JsSketch, private onTextureUpdate?: () => void) {
+    // Hidden div for p5 to append its canvas into
+    this.container = document.createElement('div')
+    this.container.style.cssText =
+      'position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;'
+    document.body.appendChild(this.container)
+
+    // Our stable texture canvas (p5 frame is copied here each draw)
+    this.canvas = document.createElement('canvas')
+    this.canvas.width = sketch.width
+    this.canvas.height = sketch.height
+
+    this.texture = new THREE.CanvasTexture(this.canvas)
+    this.texture.minFilter = THREE.LinearFilter
+    this.texture.magFilter = THREE.LinearFilter
+    this.texture.colorSpace = THREE.SRGBColorSpace
+    this.texture.generateMipmaps = false
+
+    this.initP5()
+  }
+
+  private initP5(): void {
+    const self = this
+    const { sketch, audio, midi } = this
+
+    // OpenVJ bridge exposed as `openvj` in sketch code
+    const bridge = {
       audio: {
-        uAudioLow: 0,
-        uAudioMid: 0,
-        uAudioHigh: 0,
-        uAudioAvg: 0,
-        uBeat: 0,
-        uBpm: 120,
-        uTime: 0,
-        uDeltaTime: 0
+        getLow:  () => audio.low,
+        getMid:  () => audio.mid,
+        getHigh: () => audio.high,
+        getAvg:  () => audio.avg,
+        getBeat: () => audio.beat,
+        getBpm:  () => audio.bpm,
       },
-      midi: {
-        knobs: new Array(128).fill(0),
-        buttons: new Array(128).fill(false)
-      },
-      width: sketch.width,
-      height: sketch.height
-    };
-
-    // Create Three.js texture
-    this.texture = new THREE.CanvasTexture(this.canvas);
-    this.texture.minFilter = THREE.LinearFilter;
-    this.texture.magFilter = THREE.LinearFilter;
-    this.texture.colorSpace = THREE.SRGBColorSpace;
-
-    // Initialize p5 instance
-    this.initializeP5();
-  }
-
-  /**
-   * Initialize the p5.js instance in instance mode
-   */
-  private initializeP5(): void {
-    try {
-      // Create sketch wrapper that injects OpenVJ context
-      const sketchWrapper = this.createSketchWrapper();
-      
-      // Create p5 instance
-      this.p5Instance = new p5(sketchWrapper, this.canvas);
-      
-      this.isRunning = true;
-      this.startUpdateLoop();
-    } catch (error) {
-      this.handleError(error as Error);
+      midi: { getCC: (cc: number) => midi.knobs[cc] ?? 0 },
     }
-  }
 
-  /**
-   * Creates the sketch function with OpenVJ bridge injected
-   */
-  private createSketchWrapper(): (p: p5) => void {
-    const sketchCode = this.sketch.code;
-    const ctx = this.context;
+    const sketchFn = (p: p5) => {
+      // Proxy routes any identifier lookup to the p5 instance (global-mode compat)
+      const scope = new Proxy({ openvj: bridge } as Record<string, unknown>, {
+        has() { return true },
+        get(target, prop: string) {
+          if (prop === 'openvj') return target.openvj
+          const v = (p as any)[prop]
+          return typeof v === 'function' ? v.bind(p) : v
+        },
+      })
 
-    return (p: p5) => {
-      // Store reference to update context later
-      const self = this;
+      // Compile user code once. new Function runs in sloppy mode → `with` is legal.
+      // Functions defined inside `with` close over the scope, so p5 globals remain
+      // reachable when setup()/draw() are called later.
+      let userSetup: (() => void) | null = null
+      let userDraw: (() => void) | null = null
 
-      // Override setup to inject canvas creation
+      try {
+        // eslint-disable-next-line no-new-func
+        const compile = new Function(
+          '_s',
+          `with(_s){${sketch.code}\nreturn{` +
+          `setup:typeof setup!="undefined"?setup:null,` +
+          `draw:typeof draw!="undefined"?draw:null}}`
+        )
+        const fns = compile(scope) as { setup: (() => void) | null; draw: (() => void) | null }
+        userSetup = fns.setup
+        userDraw = fns.draw
+      } catch (e) {
+        self.handleError(e as Error)
+        return
+      }
+
       p.setup = () => {
         try {
-          // Create canvas with correct renderer
-          if (this.sketch.mode === 'WEBGL') {
-            p.createCanvas(this.sketch.width, this.sketch.height, p.WEBGL);
+          if (userSetup) {
+            userSetup()
           } else {
-            p.createCanvas(this.sketch.width, this.sketch.height);
+            sketch.mode === 'WEBGL'
+              ? p.createCanvas(sketch.width, sketch.height, p.WEBGL)
+              : p.createCanvas(sketch.width, sketch.height)
           }
-
-          // Inject OpenVJ globals
-          (p as any).openvj = {
-            audio: {
-              getLow: () => ctx.audio.uAudioLow,
-              getMid: () => ctx.audio.uAudioMid,
-              getHigh: () => ctx.audio.uAudioHigh,
-              getAvg: () => ctx.audio.uAudioAvg,
-              getBeat: () => ctx.audio.uBeat,
-              getBpm: () => ctx.audio.uBpm
-            },
-            midi: {
-              getCC: (cc: number) => ctx.midi.knobs[cc] ?? 0,
-              getButton: (note: number) => ctx.midi.buttons[note] ?? false
-            },
-            width: ctx.width,
-            height: ctx.height
-          };
-
-          // Add FFT-like functions for compatibility
-          (p as any).fft = {
-            analyze: () => [ctx.audio.uAudioLow, ctx.audio.uAudioMid, ctx.audio.uAudioHigh],
-            getEnergy: (band?: string) => {
-              switch (band) {
-                case 'bass': return ctx.audio.uAudioLow;
-                case 'lowMid': return ctx.audio.uAudioMid;
-                case 'mid': return ctx.audio.uAudioMid;
-                case 'highMid': case 'treble': return ctx.audio.uAudioHigh;
-                default: return ctx.audio.uAudioAvg;
-              }
-            }
-          };
-
-          // Execute user's setup code if provided in sketch
-          if (sketchCode.includes('function setup()')) {
-            // Let the user's setup override our defaults
-            const userSetup = new Function('p', `
-              ${sketchCode}
-              if (typeof setup === 'function') setup();
-            `);
-            userSetup(p);
-          } else {
-            // No user setup, execute full sketch
-            const userSketch = new Function('p', sketchCode);
-            userSketch(p);
-          }
-        } catch (error) {
-          self.handleError(error as Error);
+          self.isRunning = true
+          self.startAudioUpdate()
+        } catch (e) {
+          self.handleError(e as Error)
         }
-      };
+      }
 
-      // Override draw to inject uniforms before user draw
-      const originalDraw = p.draw;
       p.draw = () => {
+        if (!self.isRunning) return
         try {
-          // Update time
-          ctx.audio.uTime = p.millis() / 1000;
-          ctx.audio.uDeltaTime = p.deltaTime;
+          if (userDraw) userDraw()
 
-          // Call original draw if it exists
-          if (originalDraw) {
-            originalDraw.call(p);
-          } else {
-            // Execute sketch code directly
-            const userDraw = new Function('p', `
-              ${sketchCode}
-              if (typeof draw === 'function') draw();
-            `);
-            userDraw(p);
+          // Copy p5's rendered canvas → our stable texture canvas
+          const src = (p as any).canvas as HTMLCanvasElement | null
+          if (src && src !== self.canvas) {
+            if (self.canvas.width !== src.width || self.canvas.height !== src.height) {
+              self.canvas.width = src.width
+              self.canvas.height = src.height
+            }
+            self.canvas.getContext('2d')?.drawImage(src, 0, 0)
           }
 
-          // Update texture
-          self.texture.needsUpdate = true;
-          if (self.onTextureUpdate) {
-            self.onTextureUpdate();
-          }
-        } catch (error) {
-          self.handleError(error as Error);
+          self.texture.needsUpdate = true
+          self.onTextureUpdate?.()
+        } catch (e) {
+          self.handleError(e as Error)
         }
-      };
-    };
+      }
+    }
+
+    try {
+      this.p5Instance = new p5(sketchFn, this.container)
+    } catch (e) {
+      this.handleError(e as Error)
+    }
   }
 
-  /**
-   * Start the update loop to sync with OpenVJ's audio engine
-   */
-  private startUpdateLoop(): void {
-    const update = () => {
-      if (!this.isRunning) return;
-
-      // Get current audio data from audio engine
-      this.context.audio.uAudioLow = audioEngine.low * 255;
-      this.context.audio.uAudioMid = audioEngine.mid * 255;
-      this.context.audio.uAudioHigh = audioEngine.high * 255;
-      this.context.audio.uAudioAvg = (audioEngine.low + audioEngine.mid + audioEngine.high) / 3 * 255;
-      this.context.audio.uBeat = audioEngine.beat;
-      this.context.audio.uBpm = audioEngine.bpm;
-
-      this.animationId = requestAnimationFrame(update);
-    };
-
-    this.animationId = requestAnimationFrame(update);
+  // Pull audio values from the global audio engine each frame
+  private startAudioUpdate(): void {
+    const tick = () => {
+      if (!this.isRunning) return
+      this.audio.low  = audioEngine.low  * 255
+      this.audio.mid  = audioEngine.mid  * 255
+      this.audio.high = audioEngine.high * 255
+      this.audio.avg  = ((audioEngine.low + audioEngine.mid + audioEngine.high) / 3) * 255
+      this.audio.beat = audioEngine.beat
+      this.audio.bpm  = audioEngine.bpm
+      this.audioRafId = requestAnimationFrame(tick)
+    }
+    this.audioRafId = requestAnimationFrame(tick)
   }
 
-  /**
-   * Handle errors from sketch execution
-   */
   private handleError(error: Error): void {
-    console.error('[P5JsSource] Sketch error:', error);
-    this.isRunning = false;
-    if (this.animationId) {
-      cancelAnimationFrame(this.animationId);
-    }
-    if (this.errorHandler) {
-      this.errorHandler(error);
-    }
+    console.error('[P5JsSource]', error)
+    this.isRunning = false
+    if (this.audioRafId) cancelAnimationFrame(this.audioRafId)
+    this.errorHandler?.(error)
   }
 
-  /**
-   * Set error handler callback
-   */
-  onError(handler: (error: Error) => void): void {
-    this.errorHandler = handler;
-  }
+  // ── Public API ─────────────────────────────────────────────────────────────
 
-  /**
-   * Get the Three.js texture for this sketch
-   */
-  getTexture(): THREE.CanvasTexture {
-    return this.texture;
-  }
+  onError(handler: (e: Error) => void): void { this.errorHandler = handler }
+  getTexture(): THREE.CanvasTexture { return this.texture }
+  getCanvas(): HTMLCanvasElement { return this.canvas }
 
-  /**
-   * Update MIDI state
-   */
   updateMidi(cc: number, value: number): void {
-    if (cc >= 0 && cc < 128) {
-      this.context.midi.knobs[cc] = value;
-    }
+    if (cc >= 0 && cc < 128) this.midi.knobs[cc] = value
   }
 
-  /**
-   * Resize the sketch canvas
-   */
-  resize(width: number, height: number): void {
-    this.context.width = width;
-    this.context.height = height;
-    
-    if (this.p5Instance) {
-      this.p5Instance.resizeCanvas(width, height);
-    }
-
-    // Recreate texture with new dimensions
-    this.canvas.width = width;
-    this.canvas.height = height;
-    this.texture.dispose();
-    this.texture = new THREE.CanvasTexture(this.canvas);
-    this.texture.minFilter = THREE.LinearFilter;
-    this.texture.magFilter = THREE.LinearFilter;
-    this.texture.colorSpace = THREE.SRGBColorSpace;
-  }
-
-  /**
-   * Get current canvas for preview
-   */
-  getCanvas(): HTMLCanvasElement {
-    return this.canvas;
-  }
-
-  /**
-   * Pause the sketch
-   */
   pause(): void {
-    this.isRunning = false;
-    if (this.animationId) {
-      cancelAnimationFrame(this.animationId);
-    }
-    if (this.p5Instance) {
-      this.p5Instance.noLoop();
-    }
+    this.isRunning = false
+    if (this.audioRafId) cancelAnimationFrame(this.audioRafId)
+    this.p5Instance?.noLoop()
   }
 
-  /**
-   * Resume the sketch
-   */
   resume(): void {
-    this.isRunning = true;
-    if (this.p5Instance) {
-      this.p5Instance.loop();
-    }
-    this.startUpdateLoop();
+    this.isRunning = true
+    this.p5Instance?.loop()
+    this.startAudioUpdate()
   }
 
-  /**
-   * Stop and cleanup
-   */
+  resize(width: number, height: number): void {
+    this.canvas.width = width
+    this.canvas.height = height
+    this.p5Instance?.resizeCanvas(width, height)
+  }
+
   dispose(): void {
-    this.isRunning = false;
-    
-    if (this.animationId) {
-      cancelAnimationFrame(this.animationId);
-    }
-
-    if (this.p5Instance) {
-      this.p5Instance.remove();
-      this.p5Instance = null;
-    }
-
-    this.texture.dispose();
+    this.isRunning = false
+    if (this.audioRafId) cancelAnimationFrame(this.audioRafId)
+    this.p5Instance?.remove()
+    this.p5Instance = null
+    this.texture.dispose()
+    if (this.container.parentNode) document.body.removeChild(this.container)
   }
 }
 
-/**
- * P5JsEngine - Manages multiple p5.js sources
- */
+// ─── P5JsEngine ──────────────────────────────────────────────────────────────
+
 export class P5JsEngine {
-  private sources: Map<string, P5JsSource> = new Map();
+  private sources = new Map<string, P5JsSourceImpl>()
 
-  /**
-   * Create a new p5.js source from sketch code
-   */
   createSource(sketch: P5JsSketch, onTextureUpdate?: () => void): P5JsSource {
-    const source = new P5JsSource(sketch, onTextureUpdate);
-    this.sources.set(sketch.id, source);
-    return source;
+    const existing = this.sources.get(sketch.id)
+    if (existing) { existing.dispose(); this.sources.delete(sketch.id) }
+    const source = new P5JsSourceImpl(sketch, onTextureUpdate)
+    this.sources.set(sketch.id, source)
+    return source
   }
 
-  /**
-   * Get a source by ID
-   */
   getSource(id: string): P5JsSource | undefined {
-    return this.sources.get(id);
+    return this.sources.get(id)
   }
 
-  /**
-   * Remove a source
-   */
   removeSource(id: string): void {
-    const source = this.sources.get(id);
-    if (source) {
-      source.dispose();
-      this.sources.delete(id);
-    }
+    const s = this.sources.get(id)
+    if (s) { s.dispose(); this.sources.delete(id) }
   }
 
-  /**
-   * Update MIDI for all sources
-   */
   updateMidiAll(cc: number, value: number): void {
-    this.sources.forEach(source => {
-      source.updateMidi(cc, value);
-    });
+    this.sources.forEach((s) => s.updateMidi(cc, value))
   }
 
-  /**
-   * Dispose all sources
-   */
   dispose(): void {
-    this.sources.forEach(source => source.dispose());
-    this.sources.clear();
+    this.sources.forEach((s) => s.dispose())
+    this.sources.clear()
   }
 }
 
-// Singleton instance
-export const p5jsEngine = new P5JsEngine();
+export const p5jsEngine = new P5JsEngine()
