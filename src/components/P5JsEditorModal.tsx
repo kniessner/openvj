@@ -57,6 +57,7 @@ export const P5JsEditorModal: React.FC<P5JsEditorModalProps> = ({ isOpen, onClos
     loadTemplate,
     toggleLayer,
     addLayer,
+    removeLayer,
     setLayerOpacity,
     setLayerBlendMode,
   } = useP5JsStore();
@@ -124,9 +125,8 @@ export const P5JsEditorModal: React.FC<P5JsEditorModalProps> = ({ isOpen, onClos
     // Tab to insert spaces
     if (e.key === 'Tab') {
       e.preventDefault();
-      const target = e.currentTarget as HTMLTextAreaElement;
-      const start = target.selectionStart;
-      const end = target.selectionEnd;
+      const start = e.currentTarget.selectionStart;
+      const end = e.currentTarget.selectionEnd;
       const newCode = code.substring(0, start) + '  ' + code.substring(end);
       setCode(newCode);
       setTimeout(() => {
@@ -159,7 +159,7 @@ export const P5JsEditorModal: React.FC<P5JsEditorModalProps> = ({ isOpen, onClos
   // Duplicate layer
   const handleDuplicate = () => {
     if (!activeLayer) return;
-    addLayer({
+    const newLayerId = addLayer({
       ...activeLayer.sketch,
       id: `sketch-${Date.now()}`,
       name: `${activeLayer.name} Copy`,

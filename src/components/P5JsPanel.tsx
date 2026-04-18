@@ -27,7 +27,7 @@ export const P5JsPanel: React.FC<P5JsPanelProps> = ({ collapsed, onToggle }) => 
     setLayerOpacity,
   } = useP5JsStore();
 
-  const { activeSurfaceId, assignAsset } = useSurfaceStore();
+  const { activeSurfaceId, updateSurface } = useSurfaceStore();
 
   const [showTemplates, setShowTemplates] = useState(false);
   const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
@@ -35,7 +35,7 @@ export const P5JsPanel: React.FC<P5JsPanelProps> = ({ collapsed, onToggle }) => 
   // Assign p5.js layer to the active surface
   const assignToSurface = (layerId: string) => {
     if (activeSurfaceId) {
-      assignAsset(activeSurfaceId, layerId);
+      updateSurface(activeSurfaceId, { assetId: layerId });
     }
   };
 
