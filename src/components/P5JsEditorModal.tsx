@@ -402,7 +402,7 @@ function draw() {
                   <ul className="text-xs text-gray-400 space-y-1 list-disc list-inside">
                     <li>Write standard p5.js global mode — <code className="text-purple-300">function setup()</code> + <code className="text-purple-300">function draw()</code></li>
                     <li>Press <kbd className="px-1 bg-gray-700 rounded">Ctrl+Enter</kbd> or <kbd className="px-1 bg-gray-700 rounded">Ctrl+S</kbd> to run</li>
-                    <li>Use <code className="text-blue-300">ADD</code> blend mode for glowing neon effects</li>
+                    <li>Use <code className="text-[#d4f542]">ADD</code> blend mode for glowing neon effects</li>
                     <li>Keep particle counts under 500 for smooth 60fps</li>
                     <li>WEBGL mode for 3D — 2D is faster for flat visuals</li>
                   </ul>

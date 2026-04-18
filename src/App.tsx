@@ -1188,7 +1188,7 @@ function PerfOverlay({
           <input type="range" min={0} max={1} step={0.01} value={activeSurface.opacity}
             onChange={(e) => onUpdateOpacity(parseFloat(e.target.value))}
             className="w-full cursor-pointer h-1.5 rounded-full appearance-none"
-            style={{ background: `linear-gradient(to right, #3b82f6 ${activeSurface.opacity * 100}%, #374151 ${activeSurface.opacity * 100}%)` }}
+            style={{ background: `linear-gradient(to right, #d4f542 ${activeSurface.opacity * 100}%, #2d3748 ${activeSurface.opacity * 100}%)` }}
           />
         </div>
       ) : (

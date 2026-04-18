@@ -100,7 +100,7 @@ function CornerHandle({ position, isHovered, isLocked, canRemove, onDrag, onHove
     }
   }, [gl, setDraggingCorner])
 
-  const color = isLocked ? '#6b7280' : isDragging || isHovered ? '#60a5fa' : '#ef4444'
+  const color = isLocked ? '#6b7280' : isDragging || isHovered ? '#d4f542' : '#ef4444'
   const size  = isDragging || isHovered ? 0.13 : 0.09
 
   return (
@@ -153,7 +153,7 @@ function EdgeHandle({ position, onClick }: EdgeHandleProps) {
       onPointerLeave={() => { setHovered(false); gl.domElement.style.cursor = 'auto' }}
     >
       <sphereGeometry args={[hovered ? 0.065 : 0.045, 12, 12]} />
-      <meshBasicMaterial color="#60a5fa" transparent opacity={hovered ? 0.9 : 0.45} />
+      <meshBasicMaterial color="#d4f542" transparent opacity={hovered ? 0.9 : 0.4} />
     </mesh>
   )
 }
@@ -198,7 +198,7 @@ export function SurfaceMesh({ surface, presentMode = false }: SurfaceMeshProps) 
     const ctx = canvas.getContext('2d')!
     ctx.fillStyle = '#1a2234'
     ctx.fillRect(0, 0, 256, 256)
-    ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 1; ctx.globalAlpha = 0.3
+    ctx.strokeStyle = '#4b5563'; ctx.lineWidth = 1; ctx.globalAlpha = 0.4
     for (let i = 0; i <= 4; i++) {
       const p = (i / 4) * 256
       ctx.beginPath()
@@ -207,9 +207,9 @@ export function SurfaceMesh({ surface, presentMode = false }: SurfaceMeshProps) 
       ctx.stroke()
     }
     ctx.globalAlpha = 1
-    ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 3
+    ctx.strokeStyle = '#374151'; ctx.lineWidth = 2
     ctx.strokeRect(2, 2, 252, 252)
-    ctx.fillStyle = '#60a5fa'
+    ctx.fillStyle = '#9ca3af'
     ctx.font = 'bold 20px -apple-system, sans-serif'
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
     ctx.fillText(surface.name, 128, 128)

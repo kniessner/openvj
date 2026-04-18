@@ -51,7 +51,7 @@ interface SliderProps {
   onChange: (v: number) => void
 }
 
-function Slider({ label, value, min, max, step, defaultValue, format, accent = '#3b82f6', onChange }: SliderProps) {
+function Slider({ label, value, min, max, step, defaultValue, format, accent = '#d4f542', onChange }: SliderProps) {
   const [editing, setEditing] = useState(false)
   const [editVal, setEditVal] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
