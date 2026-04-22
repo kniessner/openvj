@@ -6,8 +6,10 @@ import { Corner, Surface as SurfaceType, useSurfaceStore, defaultUVForIndex } fr
 import { ProjectedMaterial } from '../shaders/ProjectedMaterial'
 import { useAssetStore, BUILTIN_ASSETS } from '../stores/assetStore'
 import { assetTextureManager } from '../lib/assetTextureManager'
+import { depthTextureManager } from '../lib/depthTextureManager'
 import { audioEngine } from '../lib/audioEngine'
 import { useP5JsStore } from '../stores/p5jsStore'
+import { DepthVoxelMesh } from './DepthVoxelMesh'
 
 // ─── Polygon geometry ─────────────────────────────────────────────────────────
 // Fan-triangulation from centroid. UVs are either per-corner stored values or
@@ -236,6 +238,29 @@ export function SurfaceMesh({ surface, presentMode = false }: SurfaceMeshProps) 
       }
       return
     }
+    // Depth assets - render depth texture on surface + voxel overlay
+    if (asset?.type === 'depth') {
+      // Load depth texture for the surface (visualization)
+      if (asset.depthSourceId) {
+        const loadDepth = async () => {
+          const sourceVideo = assetTextureManager.getMediaEl(asset.depthSourceId!)
+          if (sourceVideo) {
+            const tex = await depthTextureManager.loadDepthTexture(
+              asset.id,
+              sourceVideo,
+              asset.depthConfig
+            )
+            material.setTexture(tex ?? canvasTexture)
+          } else {
+            material.setTexture(canvasTexture)
+          }
+        }
+        loadDepth()
+      } else {
+        material.setTexture(canvasTexture)
+      }
+      return
+    }
     // Regular asset
     if (!asset) { material.setTexture(canvasTexture); return }
     assetTextureManager.load(asset).then((tex) => {
@@ -296,6 +321,20 @@ export function SurfaceMesh({ surface, presentMode = false }: SurfaceMeshProps) 
         material={material}
         onClick={(e) => { e.stopPropagation(); setActiveSurface(surface.id) }}
       />
+
+      {/* Depth voxel overlay for depth assets */}
+      {asset?.type === 'depth' && (
+        <DepthVoxelMesh 
+          asset={asset} 
+          position={new THREE.Vector3(
+            surface.corners.reduce((s, c) => s + c.x, 0) / surface.corners.length,
+            surface.corners.reduce((s, c) => s + c.y, 0) / surface.corners.length,
+            0.1
+          )}
+          scale={0.8}
+          autoRotate={true}
+        />
+      )}
 
       {/* Corner handles */}
       {showHandles && surface.corners.map((c, i) => (

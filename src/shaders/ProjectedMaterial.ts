@@ -145,12 +145,17 @@ function buildFragmentShader(customShader: string | null): string {
       uv.y += cos(uv.x * uWarpFreq + uTime * 1.7) * uWarpAmp;
     }
 
+    // Clamp UV to prevent edge artifacts (black lines from texture wrapping)
+    uv = clamp(uv, 0.001, 0.999);
+
     // Sample with optional chromatic aberration
     vec4 color;
     if (uChromaAb > 0.0) {
-      float r = texture2D(uTexture, uv + vec2( uChromaAb, 0.0)).r;
+      vec2 uvR = clamp(uv + vec2( uChromaAb, 0.0), 0.001, 0.999);
+      vec2 uvB = clamp(uv - vec2( uChromaAb, 0.0), 0.001, 0.999);
+      float r = texture2D(uTexture, uvR).r;
       float g = texture2D(uTexture, uv                        ).g;
-      float b = texture2D(uTexture, uv - vec2( uChromaAb, 0.0)).b;
+      float b = texture2D(uTexture, uvB).b;
       float a = texture2D(uTexture, uv).a;
       color = vec4(r, g, b, a);
     } else {

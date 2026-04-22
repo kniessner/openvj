@@ -61,6 +61,25 @@ function AssetIcon({ type, className = 'w-3.5 h-3.5' }: { type: AssetType; class
             d="M12 3c1.2 5.4 5 8 5 12" />
         </svg>
       )
+    case 'depth':
+      return (
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M12 2L2 7l10 5 10-5-10-5z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M2 17l10 5 10-5" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M2 12l10 5 10-5" />
+        </svg>
+      )
+    case 'p5js':
+      return (
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+          <circle cx="12" cy="12" r="3" strokeWidth={2} />
+        </svg>
+      )
   }
 }
 
@@ -599,6 +618,7 @@ const TYPE_COLORS: Record<AssetType, string> = {
   screencapture: 'text-orange-400',
   uji:           'text-pink-400',
   p5js:          'text-cyan-400',
+  depth:         'text-blue-400',
 }
 
 interface AssetCardProps {
@@ -648,11 +668,17 @@ function AssetCard({ asset, assignedSurfaceNames, isActiveSurface, isBuiltin, on
 
       {/* Actions */}
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-        {(asset.type === 'shader' || asset.type === 'uji') && (
+        {(asset.type === 'shader' || asset.type === 'uji' || asset.type === 'depth') && (
           <button
             onClick={(e) => { e.stopPropagation(); onEdit() }}
-            className={`p-1 rounded text-gray-500 hover:bg-gray-700 transition-colors cursor-pointer ${asset.type === 'uji' ? 'hover:text-pink-400' : 'hover:text-purple-400'}`}
-            title={asset.type === 'uji' ? 'Edit generator' : isBuiltin ? 'View shader' : 'Edit shader'}
+            className={`p-1 rounded text-gray-500 hover:bg-gray-700 transition-colors cursor-pointer ${
+              asset.type === 'uji' ? 'hover:text-pink-400' : 
+              asset.type === 'depth' ? 'hover:text-blue-400' :
+              'hover:text-purple-400'
+            }`}
+            title={asset.type === 'uji' ? 'Edit generator' : 
+                   asset.type === 'depth' ? 'Configure depth' :
+                   isBuiltin ? 'View shader' : 'Edit shader'}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -679,7 +705,7 @@ function AssetCard({ asset, assignedSurfaceNames, isActiveSurface, isBuiltin, on
 
 // ─── Filter tab ───────────────────────────────────────────────────────────────
 
-const ALL_TYPES: (AssetType | 'all')[] = ['all', 'video', 'image', 'shader', 'uji', 'p5js', 'webcam', 'screencapture']
+const ALL_TYPES: (AssetType | 'all')[] = ['all', 'video', 'image', 'shader', 'uji', 'p5js', 'webcam', 'screencapture', 'depth']
 const TYPE_LABELS: Record<AssetType | 'all', string> = {
   all: 'All',
   video: 'Video',
@@ -689,6 +715,7 @@ const TYPE_LABELS: Record<AssetType | 'all', string> = {
   p5js: 'p5.js',
   webcam: 'Cam',
   screencapture: 'Screen',
+  depth: 'Depth',
 }
 
 // ─── Add menu ─────────────────────────────────────────────────────────────────
@@ -706,6 +733,7 @@ function AddMenu({ onAdd, onClose }: AddMenuProps) {
     { type: 'uji',           label: 'Uji Generator',  desc: 'Iterative line art — 6 presets' },
     { type: 'webcam',        label: 'Webcam',         desc: 'Live camera feed' },
     { type: 'screencapture', label: 'Screen Capture', desc: 'Capture any window' },
+    { type: 'depth',         label: 'Depth Layer',    desc: '3D depth from video' },
   ]
   return (
     <div className="absolute bottom-full left-0 right-0 mb-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-20 overflow-hidden">
@@ -734,11 +762,12 @@ interface MediaBrowserProps {
   onEditShader: (asset: Asset | null) => void
   onNewUji: () => void
   onEditUji: (asset: Asset) => void
+  onEditDepth?: (asset: Asset) => void
   collapsed?: boolean
   onToggle?: () => void
 }
 
-export function MediaBrowser({ onEditShader, onNewUji, onEditUji, collapsed = false, onToggle }: MediaBrowserProps) {
+export function MediaBrowser({ onEditShader, onNewUji, onEditUji, onEditDepth, collapsed = false, onToggle }: MediaBrowserProps) {
   const { assets, addAsset, removeAsset } = useAssetStore()
   const { surfaces, activeSurfaceId, assignAsset } = useSurfaceStore()
   const [filter, setFilter] = useState<AssetType | 'all'>('all')
@@ -798,6 +827,30 @@ export function MediaBrowser({ onEditShader, onNewUji, onEditUji, collapsed = fa
         removeAsset(id)
         setError('Screen capture denied')
       }
+      return
+    }
+    if (type === 'depth') {
+      const depthNumber = assets.filter(a => a.type === 'depth').length + 1
+      const id = addAsset({ 
+        type: 'depth', 
+        name: `Depth ${depthNumber}`,
+        depthConfig: {
+          enabled: true,
+          resolutionX: 64,
+          resolutionY: 48,
+          extrusionScale: 2.0,
+          pointSize: 3.0,
+          colorByDepth: true,
+          renderMode: 'points',
+          audioReactivity: 0.5,
+        }
+      })
+      // Open config panel for the new depth asset
+      const newAsset = assets.find(a => a.id === id)
+      if (newAsset) {
+        onEditDepth?.(newAsset)
+      }
+      return
     }
   }
 

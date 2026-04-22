@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { Asset, DEFAULT_SHADER } from '../stores/assetStore'
 import { audioEngine } from './audioEngine'
 import { renderUji, UjiAnimator, DEFAULT_UJI_PARAMS } from './ujiRenderer'
+import { depthTextureManager } from './depthTextureManager'
 
 interface ManagedTexture {
   texture: THREE.Texture
@@ -40,6 +41,7 @@ class AssetTextureManager {
       case 'screencapture': return this._screen(asset)
       case 'uji':           return this._uji(asset)
       case 'p5js':          return null  // p5.js layers render via p5jsStore sources
+      case 'depth':         return this._depth(asset)
     }
   }
 
@@ -64,6 +66,12 @@ class AssetTextureManager {
     const v = this._videoEl(asset.url!)
     const tex = new THREE.VideoTexture(v)
     tex.colorSpace = THREE.SRGBColorSpace
+    tex.minFilter = THREE.LinearFilter
+    tex.magFilter = THREE.LinearFilter
+    tex.wrapS = THREE.ClampToEdgeWrapping
+    tex.wrapT = THREE.ClampToEdgeWrapping
+    tex.anisotropy = 16
+    tex.premultiplyAlpha = false
     this.cache.set(asset.id, {
       texture: tex,
       mediaEl: v,
@@ -89,6 +97,9 @@ class AssetTextureManager {
           ctx.drawImage(img, 0, 0)
           const tex = new THREE.CanvasTexture(canvas)
           tex.colorSpace = THREE.SRGBColorSpace
+          tex.wrapS = THREE.ClampToEdgeWrapping
+          tex.wrapT = THREE.ClampToEdgeWrapping
+          tex.premultiplyAlpha = false
           this.cache.set(asset.id, {
             texture: tex,
             update: () => {
@@ -107,6 +118,12 @@ class AssetTextureManager {
           asset.url!,
           (tex) => {
             tex.colorSpace = THREE.SRGBColorSpace
+            tex.minFilter = THREE.LinearFilter
+            tex.magFilter = THREE.LinearFilter
+            tex.wrapS = THREE.ClampToEdgeWrapping
+            tex.wrapT = THREE.ClampToEdgeWrapping
+            tex.anisotropy = 16
+            tex.premultiplyAlpha = false
             this.cache.set(asset.id, { texture: tex, dispose: () => tex.dispose() })
             resolve(tex)
           },
@@ -249,6 +266,48 @@ ${code}`,
       video: { frameRate: 30 } as MediaTrackConstraints,
     })
     return this._streamTex(asset.id, stream)
+  }
+
+  private async _depth(asset: Asset): Promise<THREE.Texture | null> {
+    // Depth assets need a source (webcam/video) to process
+    const sourceId = asset.depthSourceId
+    if (!sourceId) {
+      console.warn('[AssetTextureManager] Depth asset missing sourceId')
+      return null
+    }
+
+    // Ensure source is loaded first
+    let sourceVideo = this.getMediaEl(sourceId)
+    if (!sourceVideo) {
+      // Try to load the source asset first
+      // Note: This would need access to the asset store, handled at component level
+      console.warn('[AssetTextureManager] Depth source not loaded:', sourceId)
+      return null
+    }
+
+    try {
+      const depthTexture = await depthTextureManager.loadDepthTexture(
+        asset.id,
+        sourceVideo,
+        asset.depthConfig
+      )
+
+      if (!depthTexture) return null
+
+      // Create a managed texture entry that wraps depth texture manager
+      this.cache.set(asset.id, {
+        texture: depthTexture,
+        mediaEl: sourceVideo,
+        dispose: () => {
+          depthTextureManager.disposeAll()
+        },
+      })
+
+      return depthTexture
+    } catch (error) {
+      console.error('[AssetTextureManager] Failed to load depth texture:', error)
+      return null
+    }
   }
 
   // ─── helpers ─────────────────────────────────────────────────────────────

@@ -74,12 +74,29 @@ function OverviewContent() {
             ['p5.js',   'Live-programmed generative art with audio-reactive OpenVJ Bridge API.'],
             ['Webcam',  'Live camera feed — requires browser permission.'],
             ['Screen',  'Capture any window or display via browser API.'],
+            ['Depth',   'Real-time 3D depth estimation from any video source. WebGPU required.'],
           ].map(([type, desc]) => (
             <div key={type} className="flex gap-3">
-              <span className="text-[#d4f542] font-medium w-16 flex-shrink-0">{type}</span>
+              <span className={type === 'Depth' ? 'text-blue-400 font-medium w-16 flex-shrink-0' : 'text-[#d4f542] font-medium w-16 flex-shrink-0'}>{type}</span>
               <span className="text-gray-500">{desc}</span>
             </div>
           ))}
+        </div>
+      </Section>
+
+      <Section title="Depth Estimation (v0.3)">
+        <div className="space-y-2 text-xs text-gray-400">
+          <p>Transform any video source into real-time 3D voxel extrusion using on-device ML:</p>
+          <ol className="space-y-1 list-decimal list-inside pl-2">
+            <li>Click <strong className="text-blue-400">+ Depth Layer</strong> in the Media panel</li>
+            <li>Select a video source (webcam, screen, or video)</li>
+            <li>Adjust resolution (3K-12K voxels), extrusion scale, and audio reactivity</li>
+            <li>Assign to a surface — see both depth texture AND floating 3D voxel cloud</li>
+          </ol>
+          <p className="text-gray-500">
+            <strong className="text-gray-300">Requirements:</strong> Chrome/Edge with WebGPU enabled. 
+            Model downloads on first use (~50MB). Performance varies by GPU.
+          </p>
         </div>
       </Section>
 

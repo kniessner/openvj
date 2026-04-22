@@ -39,10 +39,13 @@ export interface UjiParams {
   rotationUntil?: number    // –1 = always; ≥0 = freeze rotation after N iters
   rotationOriginH?: number  // 0–1, default 0.5 (canvas center)
   rotationOriginV?: number  // 0–1, default 0.5 (canvas center)
+  initialRotation?: number  // Initial rotation in degrees (0-359)
 
   // Motion
   expansionH: number
   expansionV: number
+  expansionHExp?: number    // Exponential factor added to H expansion
+  expansionVExp?: number    // Exponential factor added to V expansion
   translationH: number
   translationV: number
 
@@ -56,7 +59,16 @@ export interface UjiParams {
   // Visibility
   skipChance: number
   segmentRotation: number
+  segmentLengthening?: number  // % of nominal length (10-500)
+  lineSwappiness?: number      // Pairs of segments swapped (0-100)
   revealSpeed?: number      // –1 = instant (all segs); >0 = segs added per iter
+
+  // Fade effects
+  fadeInSpeed?: number      // Rate segments appear (0-200)
+  fadeOutSpeed?: number     // Rate segments disappear (-1 to disable)
+  fadeOutStart?: number     // Iteration where fade begins
+  sawtoothFadeOutSize?: number   // Size of "saw teeth" (-1 to disable)
+  sawtoothFadeOutStart?: number  // Iteration where sawtooth fade begins
 
   // Appearance
   thickness: number
@@ -67,6 +79,7 @@ export interface UjiParams {
   blendMode?: UjiBlendMode
   shadowBlur?: number       // 0 = off; >0 = glow radius at 512px canvas
   lineCap?: 'auto' | 'butt' | 'round' | 'square'
+  canvasNoise?: number      // Salt-and-pepper noise intensity (0-1)
 
   // Animation
   animate: boolean          // incremental frame-by-frame mode
@@ -556,16 +569,28 @@ export class UjiAnimator {
       this.hue += params.hueshiftSpeed + am.hueshiftByMid * mid
       if (drawN > 1) drawIteration(ctx, this.px, this.py, drawN, this.hue, params, () => this.rng(), S)
 
-      this.iteration++
+      this.iteration = (this.iteration + 1) % params.iterations
 
-      if (this.iteration >= params.iterations) {
-        ctx.fillStyle = `rgba(${params.bgR},${params.bgG},${params.bgB},0.65)`
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
-        initShape(this.px, this.py, cx, cy, params.radius * this._S, params.shape, N)
-        this.hue = 0
-        this.iteration = 0
-        this.revealedCount = revealSpeed <= 0 ? N : 0
+      // Reveal reset on loop (for revealSpeed animations)
+      if (this.iteration === 0 && revealSpeed > 0) {
+        this.revealedCount = 0
       }
     }
+  }
+
+  /**
+   * Trigger a soft fade (useful for long-running animations to prevent over-buildup)
+   */
+  softFade(alpha = 0.08): void {
+    const { ctx, canvas, params } = this
+    ctx.fillStyle = `rgba(${params.bgR},${params.bgG},${params.bgB},${alpha})`
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+  }
+
+  /**
+   * Hard reset - clears canvas and reinitializes shape
+   */
+  reset(): void {
+    this.init()
   }
 }

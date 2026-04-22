@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Webcam to Depth - POC</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #0a0a0f;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      overflow: hidden;
+    }
+    #app {
+      display: flex;
+      height: 100vh;
+    }
+    #canvas-container {
+      flex: 1;
+      position: relative;
+    }
+    #depth-canvas {
+      width: 100%;
+      height: 100%;
+    }
+    #ui-panel {
+      width: 320px;
+      background: #111118;
+      border-left: 1px solid #222;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    h1 {
+      font-size: 18px;
+      margin-bottom: 8px;
+      color: #d4f542;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 20px;
+    }
+    .section {
+      margin-bottom: 24px;
+    }
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #888;
+      margin-bottom: 12px;
+    }
+    .preview-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .preview-box {
+      aspect-ratio: 4/3;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #333;
+    }
+    .preview-box video,
+    .preview-box canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .preview-label {
+      font-size: 10px;
+      color: #666;
+      text-align: center;
+      margin-top: 4px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #d4f542;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    button:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+    }
+    .control-group {
+      margin-bottom: 16px;
+    }
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .control-value {
+      color: #d4f542;
+      font-family: monospace;
+    }
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #d4f542;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 16px;
+      padding: 12px;
+      background: #0a0a0f;
+      border-radius: 8px;
+      border: 1px solid #222;
+    }
+    .stat {
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #d4f542;
+    }
+    .stat-label {
+      font-size: 10px;
+      color: #666;
+      text-transform: uppercase;
+    }
+    #loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0a0a0f;
+      z-index: 100;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #222;
+      border-top-color: #d4f542;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .loading-text {
+      margin-top: 16px;
+      font-size: 14px;
+      color: #888;
+    }
+    .error {
+      padding: 12px;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 8px;
+      color: #ef4444;
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text">Loading depth model...</div>
+  </div>
+
+  <div id="app">
+    <div id="canvas-container">
+      <canvas id="depth-canvas"></canvas>
+    </div>
+    
+    <div id="ui-panel">
+      <h1>WEBCAM TO DEPTH</h1>
+      <div class="subtitle">Transformer-based monocular depth estimation</div>
+      
+      <div class="preview-container">
+        <div>
+          <div class="preview-box">
+            <video id="webcam-video" autoplay playsinline muted></video>
+          </div>
+          <div class="preview-label">Webcam Input</div>
+        </div>
+        <div>
+          <div class="preview-box">
+            <canvas id="depth-map-preview"></canvas>
+          </div>
+          <div class="preview-label">Depth Map</div>
+        </div>
+      </div>
+
+      <div id="error-container"></div>
+
+      <div class="section">
+        <button id="start-btn">Start Camera</button>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Voxel Settings</div>
+        
+        <div class="control-group">
+          <div class="control-label">
+            <span>Voxel Resolution</span>
+            <span class="control-value" id="res-value">64x48</span>
+          </div>
+          <input type="range" id="resolution" min="32" max="128" value="64" step="16">
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <span>Extrusion Scale</span>
+            <span class="control-value" id="extrusion-value">2.0</span>
+          </div>
+          <input type="range" id="extrusion" min="0.5" max="5" value="2" step="0.1">
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <span>Point Size</span>
+            <span class="control-value" id="pointsize-value">3.0</span>
+          </div>
+          <input type="range" id="pointsize" min="1" max="10" value="3" step="0.5">
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <span>Color by Depth</span>
+            <span class="control-value" id="colormode-value">On</span>
+          </div>
+          <input type="range" id="colormode" min="0" max="1" value="1" step="1">
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value" id="voxel-count">3K</div>
+          <div class="stat-label">Voxels</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="fps-counter">0</div>
+          <div class="stat-label">FPS</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="depth-fps">0</div>
+          <div class="stat-label">Depth FPS</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/main.js"></script>
+</body>
+</html>

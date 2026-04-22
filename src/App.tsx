@@ -7,8 +7,10 @@ import { SurfaceList } from './components/SurfaceList'
 import { MediaBrowser, ShaderEditor } from './components/MediaBrowser'
 import { HelpModal } from './components/HelpModal'
 import { UjiGenerator } from './components/UjiGenerator'
+import { DepthConfigPanel } from './components/DepthConfigPanel'
 import { GlobalPostProcess } from './components/GlobalPostProcess'
 import { P5JsPanel } from './components/P5JsPanel'
+import { SurfaceInspector } from './components/SurfaceInspector'
 import { useSurfaceStore, Surface } from './stores/surfaceStore'
 import { useAssetStore, Asset, BUILTIN_ASSETS } from './stores/assetStore'
 import { useSceneStore, type Scene } from './stores/sceneStore'
@@ -1261,6 +1263,7 @@ export default function App() {
     const s = localStorage.getItem('openvj-sidebar-width')
     return s ? parseInt(s, 10) : 288
   })
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(true)
   const sidebarDragRef = useRef(false)
   const sidebarDragStartXRef = useRef(0)
   const sidebarDragStartWRef = useRef(0)
@@ -1276,6 +1279,7 @@ export default function App() {
   const [editingShader, setEditingShader] = useState<Asset | null>(null)
   const [editingUji, setEditingUji] = useState<Asset | null>(null)
   const [creatingUji, setCreatingUji] = useState(false)
+  const [editingDepth, setEditingDepth] = useState<Asset | null>(null)
   const [p5jsOpen, setP5jsOpen] = useState(true)
   const [isDragOver, setIsDragOver] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
@@ -1590,13 +1594,25 @@ export default function App() {
                 d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </button>
-          <button onClick={() => setSidebarOpen((o) => !o)} title="Toggle sidebar"
+          <button onClick={() => setSidebarOpen((o) => !o)} title="Toggle left sidebar"
             className="p-1.5 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors cursor-pointer">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d={sidebarOpen ? 'M11 19l-7-7 7-7m8 14l-7-7 7-7' : 'M13 5l7 7-7 7M5 5l7 7-7 7'} />
             </svg>
           </button>
+          {activeSurface && (
+            <button 
+              onClick={() => setRightSidebarOpen((o) => !o)} 
+              title="Toggle inspector"
+              className={`p-1.5 rounded transition-colors cursor-pointer ${rightSidebarOpen ? 'bg-[#d4f542]/20 text-[#d4f542]' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'}`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d={rightSidebarOpen ? 'M13 5l7 7-7 7M5 5l7 7-7 7' : 'M11 19l-7-7 7-7m8 14l-7-7 7-7'} />
+              </svg>
+            </button>
+          )}
         </div>
       </header>
 
@@ -1618,6 +1634,7 @@ export default function App() {
                   onEditShader={setEditingShader}
                   onNewUji={() => { setEditingUji(null); setCreatingUji(true) }}
                   onEditUji={(a) => { setEditingUji(a); setCreatingUji(false) }}
+                  onEditDepth={setEditingDepth}
                   collapsed={!mediaOpen}
                   onToggle={() => setMediaOpen((o) => !o)}
                 />
@@ -1741,8 +1758,8 @@ export default function App() {
             </div>
           )}
 
-          {/* ── Fullscreen presentation HUD ── */}
-          {presenting && (
+        {/* ── Fullscreen presentation HUD ── */}
+        {presenting && (
             <div
               className={`absolute inset-0 pointer-events-none transition-opacity duration-700 ${hudVisible ? 'opacity-100' : 'opacity-0'}`}
             >
@@ -1788,6 +1805,15 @@ export default function App() {
             </div>
           )}
         </main>
+
+        {/* ── Right Sidebar (Inspector) ── */}
+        {rightSidebarOpen && activeSurface && (
+          <SurfaceInspector
+            surface={activeSurface}
+            onEditShader={() => setEditingShader(activeSurface.assetId ? assets.find(a => a.id === activeSurface.assetId) ?? null : null)}
+            onClose={() => setRightSidebarOpen(false)}
+          />
+        )}
       </div>
 
       {/* ── Transport ── */}
@@ -1809,6 +1835,14 @@ export default function App() {
         <UjiGenerator
           asset={editingUji}
           onClose={() => { setCreatingUji(false); setEditingUji(null) }}
+        />
+      )}
+
+      {/* ── Depth config modal ── */}
+      {editingDepth && (
+        <DepthConfigPanel
+          asset={editingDepth}
+          onClose={() => setEditingDepth(null)}
         />
       )}
     </div>

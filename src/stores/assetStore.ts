@@ -4,7 +4,19 @@ import type { UjiParams } from '../lib/ujiRenderer'
 
 export type { UjiParams }
 
-export type AssetType = 'video' | 'image' | 'shader' | 'webcam' | 'screencapture' | 'uji' | 'p5js'
+export type AssetType = 'video' | 'image' | 'shader' | 'webcam' | 'screencapture' | 'uji' | 'p5js' | 'depth'
+
+// Depth estimation config for depth assets
+export interface DepthAssetConfig {
+  enabled: boolean
+  resolutionX: number
+  resolutionY: number
+  extrusionScale: number
+  pointSize: number
+  colorByDepth: boolean
+  renderMode: 'points' | 'voxels'
+  audioReactivity: number
+}
 
 export interface Asset {
   id: string
@@ -21,6 +33,10 @@ export interface Asset {
   // p5js: sketch code and config (persisted)
   p5jsCode?: string
   p5jsMode?: '2D' | 'WEBGL'
+  // depth: depth estimation config and source reference
+  depthConfig?: DepthAssetConfig
+  // For depth assets: reference to source asset ID (webcam/video)
+  depthSourceId?: string
 }
 
 export const DEFAULT_SHADER = `// Uniforms available:
