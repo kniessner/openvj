@@ -3,12 +3,15 @@
  * Port of the algorithm from https://github.com/doersino/uji
  */
 
+// Export presets from separate file
+export { UJI_PRESETS_FROM_ORIGINAL } from './ujiPresets'
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type UjiBlendMode =
   | 'source-over' | 'screen'   | 'multiply'   | 'overlay'
   | 'lighter'     | 'darken'   | 'lighten'     | 'difference'
-  | 'exclusion'   | 'color-dodge' | 'color-burn' | 'hard-light'
+  | 'exclusion'   | 'color-dodge' | 'color-burn' | 'hard-light' | 'soft-light'
 
 export interface UjiAudioMod {
   rotByLow: number        // deg/iter added per unit of bass (–4 to 4)
@@ -76,6 +79,7 @@ export interface UjiParams {
   lineOpacity: number
   hueshiftSpeed: number
   bgR: number; bgG: number; bgB: number
+  bgOpacity?: number        // Background opacity (0-1) - from original Uji
   blendMode?: UjiBlendMode
   shadowBlur?: number       // 0 = off; >0 = glow radius at 512px canvas
   lineCap?: 'auto' | 'butt' | 'round' | 'square'
@@ -84,6 +88,9 @@ export interface UjiParams {
   // Animation
   animate: boolean          // incremental frame-by-frame mode
   itersPerFrame: number     // iterations processed per animation frame (1–10)
+  loopMode: 'infinite' | 'pingpong' | 'once' | 'cycle'  // Animation loop behavior
+  loopDuration?: number     // Frames before loop reset (-1 = use iterations)
+  clearOnLoop?: boolean     // Clear canvas on loop restart
 
   // Audio modulation (used when animate = true)
   audioMod: UjiAudioMod
@@ -94,19 +101,22 @@ export interface UjiParams {
 export const DEFAULT_UJI_PARAMS: UjiParams = {
   shape: 1, segments: 600, radius: 190, iterations: 250,
   rotationSpeed: 1.5, rotationSpeedup: 0, rotationPeriod: -1,
-  rotationUntil: -1, rotationOriginH: 0.5, rotationOriginV: 0.5,
-  expansionH: 1.0005, expansionV: 1.0005,
+  rotationUntil: -1, rotationOriginH: 0.5, rotationOriginV: 0.5, initialRotation: 0,
+  expansionH: 1.0005, expansionV: 1.0005, expansionHExp: 0, expansionVExp: 0,
   translationH: 0, translationV: 0,
   jitter: 2, wavinessPH: -1, wavinessAH: 0, wavinessPV: -1, wavinessAV: 0,
-  skipChance: 0, segmentRotation: 0, revealSpeed: -1,
+  skipChance: 0, segmentRotation: 0, segmentLengthening: 100, lineSwappiness: 0, revealSpeed: -1,
+  fadeInSpeed: 0, fadeOutSpeed: -1, fadeOutStart: 0, sawtoothFadeOutSize: -1, sawtoothFadeOutStart: 0,
   thickness: 0.8, lineR: 80, lineG: 140, lineB: 255, lineOpacity: 0.25,
-  hueshiftSpeed: 0.8, bgR: 5, bgG: 0, bgB: 15,
-  blendMode: 'source-over', shadowBlur: 0, lineCap: 'auto',
-  animate: false, itersPerFrame: 3, audioMod: { ...DEFAULT_AUDIO_MOD },
+  hueshiftSpeed: 0.8, bgR: 5, bgG: 0, bgB: 15, bgOpacity: 1,
+  blendMode: 'source-over', shadowBlur: 0, lineCap: 'auto', canvasNoise: 0,
+  animate: false, itersPerFrame: 3, loopMode: 'cycle', loopDuration: -1, clearOnLoop: true,
+  audioMod: { ...DEFAULT_AUDIO_MOD },
 }
 
-const STATIC: Pick<UjiParams, 'animate' | 'itersPerFrame' | 'audioMod'> = {
-  animate: false, itersPerFrame: 3, audioMod: { ...DEFAULT_AUDIO_MOD },
+const STATIC: Pick<UjiParams, 'animate' | 'itersPerFrame' | 'audioMod' | 'bgOpacity' | 'loopMode' | 'loopDuration' | 'clearOnLoop'> = {
+  animate: false, itersPerFrame: 3, loopMode: 'cycle', loopDuration: -1, clearOnLoop: true,
+  audioMod: { ...DEFAULT_AUDIO_MOD }, bgOpacity: 1,
 }
 
 export const UJI_PRESETS: Record<string, UjiParams> = {
@@ -115,51 +125,71 @@ export const UJI_PRESETS: Record<string, UjiParams> = {
   Helix: {
     shape: 4, segments: 800, radius: 200, iterations: 200,
     rotationSpeed: 2.5, rotationSpeedup: 0, rotationPeriod: 80,
-    expansionH: 1.0, expansionV: 1.0, translationH: 0, translationV: 0,
+    expansionH: 1.0, expansionV: 1.0, expansionHExp: 0, expansionVExp: 0,
+    translationH: 0, translationV: 0,
     jitter: 1, wavinessPH: 300, wavinessAH: 6, wavinessPV: 150, wavinessAV: 4,
-    skipChance: 0, segmentRotation: 0,
+    skipChance: 0, segmentRotation: 0, segmentLengthening: 100, lineSwappiness: 0, revealSpeed: -1,
+    fadeInSpeed: 0, fadeOutSpeed: -1, fadeOutStart: 0, sawtoothFadeOutSize: -1, sawtoothFadeOutStart: 0,
     thickness: 0.7, lineR: 0, lineG: 220, lineB: 140, lineOpacity: 0.4,
-    hueshiftSpeed: 1.2, bgR: 0, bgG: 0, bgB: 5, ...STATIC,
+    hueshiftSpeed: 1.2, bgR: 0, bgG: 0, bgB: 5, blendMode: 'source-over',
+    shadowBlur: 0, lineCap: 'auto', canvasNoise: 0,
+    ...STATIC,
   },
 
   Vortex: {
     shape: 1, segments: 1200, radius: 200, iterations: 350,
     rotationSpeed: 2.0, rotationSpeedup: 0.003, rotationPeriod: -1,
-    expansionH: 0.9985, expansionV: 0.9985, translationH: 0, translationV: 0,
+    expansionH: 0.9985, expansionV: 0.9985, expansionHExp: 0, expansionVExp: 0,
+    translationH: 0, translationV: 0,
     jitter: 3, wavinessPH: -1, wavinessAH: 0, wavinessPV: -1, wavinessAV: 0,
-    skipChance: 0.04, segmentRotation: 0,
+    skipChance: 0.04, segmentRotation: 0, segmentLengthening: 100, lineSwappiness: 0, revealSpeed: -1,
+    fadeInSpeed: 0, fadeOutSpeed: -1, fadeOutStart: 0, sawtoothFadeOutSize: -1, sawtoothFadeOutStart: 0,
     thickness: 0.6, lineR: 255, lineG: 50, lineB: 200, lineOpacity: 0.2,
-    hueshiftSpeed: 2, bgR: 0, bgG: 0, bgB: 0, ...STATIC,
+    hueshiftSpeed: 2, bgR: 0, bgG: 0, bgB: 0, blendMode: 'source-over',
+    shadowBlur: 0, lineCap: 'auto', canvasNoise: 0,
+    ...STATIC,
   },
 
   Geometric: {
     shape: 2, segments: 800, radius: 160, iterations: 150,
     rotationSpeed: 1.0, rotationSpeedup: 0, rotationPeriod: -1,
-    expansionH: 1.002, expansionV: 1.002, translationH: 0, translationV: 0,
+    expansionH: 1.002, expansionV: 1.002, expansionHExp: 0, expansionVExp: 0,
+    translationH: 0, translationV: 0,
     jitter: 0, wavinessPH: -1, wavinessAH: 0, wavinessPV: -1, wavinessAV: 0,
-    skipChance: 0, segmentRotation: 0,
+    skipChance: 0, segmentRotation: 0, segmentLengthening: 100, lineSwappiness: 0, revealSpeed: -1,
+    fadeInSpeed: 0, fadeOutSpeed: -1, fadeOutStart: 0, sawtoothFadeOutSize: -1, sawtoothFadeOutStart: 0,
     thickness: 1, lineR: 255, lineG: 200, lineB: 0, lineOpacity: 0.5,
-    hueshiftSpeed: 0, bgR: 0, bgG: 0, bgB: 0, ...STATIC,
+    hueshiftSpeed: 0, bgR: 0, bgG: 0, bgB: 0, blendMode: 'source-over',
+    shadowBlur: 0, lineCap: 'auto', canvasNoise: 0,
+    ...STATIC,
   },
 
   Storm: {
     shape: 4, segments: 1500, radius: 220, iterations: 180,
     rotationSpeed: 5.0, rotationSpeedup: 0, rotationPeriod: 50,
-    expansionH: 1.0, expansionV: 1.0, translationH: 0, translationV: 0,
+    expansionH: 1.0, expansionV: 1.0, expansionHExp: 0, expansionVExp: 0,
+    translationH: 0, translationV: 0,
     jitter: 5, wavinessPH: -1, wavinessAH: 0, wavinessPV: -1, wavinessAV: 0,
-    skipChance: 0.08, segmentRotation: 0,
+    skipChance: 0.08, segmentRotation: 0, segmentLengthening: 100, lineSwappiness: 0, revealSpeed: -1,
+    fadeInSpeed: 0, fadeOutSpeed: -1, fadeOutStart: 0, sawtoothFadeOutSize: -1, sawtoothFadeOutStart: 0,
     thickness: 0.5, lineR: 200, lineG: 0, lineB: 255, lineOpacity: 0.28,
-    hueshiftSpeed: 3, bgR: 0, bgG: 0, bgB: 8, ...STATIC,
+    hueshiftSpeed: 3, bgR: 0, bgG: 0, bgB: 8, blendMode: 'source-over',
+    shadowBlur: 0, lineCap: 'auto', canvasNoise: 0,
+    ...STATIC,
   },
 
   Triangle: {
     shape: 3, segments: 600, radius: 180, iterations: 200,
     rotationSpeed: 0.8, rotationSpeedup: 0, rotationPeriod: 200,
-    expansionH: 1.001, expansionV: 1.001, translationH: 0, translationV: 0,
+    expansionH: 1.001, expansionV: 1.001, expansionHExp: 0, expansionVExp: 0,
+    translationH: 0, translationV: 0,
     jitter: 1.5, wavinessPH: 200, wavinessAH: 4, wavinessPV: -1, wavinessAV: 0,
-    skipChance: 0, segmentRotation: 0,
+    skipChance: 0, segmentRotation: 0, segmentLengthening: 100, lineSwappiness: 0, revealSpeed: -1,
+    fadeInSpeed: 0, fadeOutSpeed: -1, fadeOutStart: 0, sawtoothFadeOutSize: -1, sawtoothFadeOutStart: 0,
     thickness: 0.8, lineR: 100, lineG: 255, lineB: 180, lineOpacity: 0.35,
-    hueshiftSpeed: 1.5, bgR: 0, bgG: 5, bgB: 0, ...STATIC,
+    hueshiftSpeed: 1.5, bgR: 0, bgG: 5, bgB: 0, blendMode: 'source-over',
+    shadowBlur: 0, lineCap: 'auto', canvasNoise: 0,
+    ...STATIC,
   },
 
   // ── New feature showcase presets ───────────────────────────────────────────
@@ -167,34 +197,44 @@ export const UJI_PRESETS: Record<string, UjiParams> = {
   'Neon Bloom': {
     shape: 1, segments: 1000, radius: 175, iterations: 300,
     rotationSpeed: 1.2, rotationSpeedup: 0, rotationPeriod: 150,
-    expansionH: 1.0003, expansionV: 1.0003, translationH: 0, translationV: 0,
+    expansionH: 1.0003, expansionV: 1.0003, expansionHExp: 0, expansionVExp: 0,
+    translationH: 0, translationV: 0,
     jitter: 1.5, wavinessPH: -1, wavinessAH: 0, wavinessPV: -1, wavinessAV: 0,
-    skipChance: 0, segmentRotation: 0,
+    skipChance: 0, segmentRotation: 0, segmentLengthening: 100, lineSwappiness: 0, revealSpeed: -1,
+    fadeInSpeed: 0, fadeOutSpeed: -1, fadeOutStart: 0, sawtoothFadeOutSize: -1, sawtoothFadeOutStart: 0,
     thickness: 0.9, lineR: 0, lineG: 180, lineB: 255, lineOpacity: 0.28,
     hueshiftSpeed: 1.2, bgR: 0, bgG: 0, bgB: 0,
-    blendMode: 'screen', shadowBlur: 8, lineCap: 'round', ...STATIC,
+    blendMode: 'screen', shadowBlur: 8, lineCap: 'round', canvasNoise: 0,
+    ...STATIC,
   },
 
   'Off-Center': {
     shape: 1, segments: 800, radius: 150, iterations: 250,
     rotationSpeed: 2.5, rotationSpeedup: 0, rotationPeriod: -1,
-    expansionH: 1.0, expansionV: 1.0, translationH: 0, translationV: 0,
+    expansionH: 1.0, expansionV: 1.0, expansionHExp: 0, expansionVExp: 0,
+    translationH: 0, translationV: 0,
     rotationOriginH: 0.28, rotationOriginV: 0.38,
     jitter: 1.5, wavinessPH: -1, wavinessAH: 0, wavinessPV: -1, wavinessAV: 0,
-    skipChance: 0, segmentRotation: 0,
+    skipChance: 0, segmentRotation: 0, segmentLengthening: 100, lineSwappiness: 0, revealSpeed: -1,
+    fadeInSpeed: 0, fadeOutSpeed: -1, fadeOutStart: 0, sawtoothFadeOutSize: -1, sawtoothFadeOutStart: 0,
     thickness: 0.7, lineR: 255, lineG: 120, lineB: 20, lineOpacity: 0.32,
-    hueshiftSpeed: 1.5, bgR: 0, bgG: 0, bgB: 4, ...STATIC,
+    hueshiftSpeed: 1.5, bgR: 0, bgG: 0, bgB: 4, blendMode: 'source-over',
+    shadowBlur: 0, lineCap: 'auto', canvasNoise: 0,
+    ...STATIC,
   },
 
   'Spiral Reveal': {
     shape: 4, segments: 1000, radius: 200, iterations: 400,
     rotationSpeed: 1.8, rotationSpeedup: 0.0008, rotationPeriod: -1,
-    expansionH: 1.0, expansionV: 1.0, translationH: 0, translationV: 0,
+    expansionH: 1.0, expansionV: 1.0, expansionHExp: 0, expansionVExp: 0,
+    translationH: 0, translationV: 0,
     jitter: 0.5, wavinessPH: -1, wavinessAH: 0, wavinessPV: -1, wavinessAV: 0,
-    skipChance: 0, segmentRotation: 0, revealSpeed: 3,
+    skipChance: 0, segmentRotation: 0, segmentLengthening: 100, lineSwappiness: 0, revealSpeed: 3,
+    fadeInSpeed: 0, fadeOutSpeed: -1, fadeOutStart: 0, sawtoothFadeOutSize: -1, sawtoothFadeOutStart: 0,
     thickness: 0.65, lineR: 80, lineG: 210, lineB: 255, lineOpacity: 0.42,
     hueshiftSpeed: 0.6, bgR: 0, bgG: 2, bgB: 8,
-    blendMode: 'screen', ...STATIC,
+    blendMode: 'screen', shadowBlur: 0, lineCap: 'auto', canvasNoise: 0,
+    ...STATIC,
   },
 
   // ── Audio-reactive animated presets ────────────────────────────────────────
@@ -202,49 +242,64 @@ export const UJI_PRESETS: Record<string, UjiParams> = {
   'Beat Pulse': {
     shape: 1, segments: 800, radius: 190, iterations: 200,
     rotationSpeed: 1.0, rotationSpeedup: 0, rotationPeriod: -1,
-    expansionH: 1.0, expansionV: 1.0, translationH: 0, translationV: 0,
+    expansionH: 1.0, expansionV: 1.0, expansionHExp: 0, expansionVExp: 0,
+    translationH: 0, translationV: 0,
     jitter: 1.5, wavinessPH: -1, wavinessAH: 0, wavinessPV: -1, wavinessAV: 0,
-    skipChance: 0.04, segmentRotation: 0,
+    skipChance: 0.04, segmentRotation: 0, segmentLengthening: 100, lineSwappiness: 0, revealSpeed: -1,
+    fadeInSpeed: 0, fadeOutSpeed: -1, fadeOutStart: 0, sawtoothFadeOutSize: -1, sawtoothFadeOutStart: 0,
     thickness: 0.8, lineR: 255, lineG: 100, lineB: 50, lineOpacity: 0.3,
-    hueshiftSpeed: 1, bgR: 0, bgG: 0, bgB: 0,
+    hueshiftSpeed: 1, bgR: 0, bgG: 0, bgB: 0, blendMode: 'source-over',
+    shadowBlur: 0, lineCap: 'auto', canvasNoise: 0,
     animate: true, itersPerFrame: 3,
+    loopMode: 'cycle', loopDuration: -1, clearOnLoop: true,
     audioMod: { rotByLow: 1.5, rotByBeat: 5.0, jitterByHigh: 1.0, jitterByBeat: 4.0, expansionByLow: 0.001, hueshiftByMid: 4.0, clearOnBeat: true },
   },
 
   'Bass Bloom': {
     shape: 1, segments: 1000, radius: 160, iterations: 300,
     rotationSpeed: 0.8, rotationSpeedup: 0, rotationPeriod: 120,
-    expansionH: 0.999, expansionV: 0.999, translationH: 0, translationV: 0,
+    expansionH: 0.999, expansionV: 0.999, expansionHExp: 0, expansionVExp: 0,
+    translationH: 0, translationV: 0,
     jitter: 1, wavinessPH: 500, wavinessAH: 3, wavinessPV: -1, wavinessAV: 0,
-    skipChance: 0.02, segmentRotation: 0,
+    skipChance: 0.02, segmentRotation: 0, segmentLengthening: 100, lineSwappiness: 0, revealSpeed: -1,
+    fadeInSpeed: 0, fadeOutSpeed: -1, fadeOutStart: 0, sawtoothFadeOutSize: -1, sawtoothFadeOutStart: 0,
     thickness: 0.7, lineR: 50, lineG: 200, lineB: 255, lineOpacity: 0.25,
-    hueshiftSpeed: 0.5, bgR: 0, bgG: 0, bgB: 5,
+    hueshiftSpeed: 0.5, bgR: 0, bgG: 0, bgB: 5, blendMode: 'source-over',
+    shadowBlur: 0, lineCap: 'auto', canvasNoise: 0,
     animate: true, itersPerFrame: 2,
+    loopMode: 'cycle', loopDuration: -1, clearOnLoop: true,
     audioMod: { rotByLow: 2.5, rotByBeat: 2.0, jitterByHigh: 0, jitterByBeat: 1.0, expansionByLow: 0.003, hueshiftByMid: 6.0, clearOnBeat: false },
   },
 
   'Freq Web': {
     shape: 4, segments: 1200, radius: 210, iterations: 200,
     rotationSpeed: 3.0, rotationSpeedup: 0, rotationPeriod: 60,
-    expansionH: 1.0, expansionV: 1.0, translationH: 0, translationV: 0,
+    expansionH: 1.0, expansionV: 1.0, expansionHExp: 0, expansionVExp: 0,
+    translationH: 0, translationV: 0,
     jitter: 2, wavinessPH: 250, wavinessAH: 5, wavinessPV: 150, wavinessAV: 3,
-    skipChance: 0.06, segmentRotation: 0,
+    skipChance: 0.06, segmentRotation: 0, segmentLengthening: 100, lineSwappiness: 0, revealSpeed: -1,
+    fadeInSpeed: 0, fadeOutSpeed: -1, fadeOutStart: 0, sawtoothFadeOutSize: -1, sawtoothFadeOutStart: 0,
     thickness: 0.6, lineR: 180, lineG: 0, lineB: 255, lineOpacity: 0.28,
-    hueshiftSpeed: 2, bgR: 2, bgG: 0, bgB: 8,
+    hueshiftSpeed: 2, bgR: 2, bgG: 0, bgB: 8, blendMode: 'source-over',
+    shadowBlur: 0, lineCap: 'auto', canvasNoise: 0,
     animate: true, itersPerFrame: 4,
+    loopMode: 'cycle', loopDuration: -1, clearOnLoop: true,
     audioMod: { rotByLow: 0, rotByBeat: 3.0, jitterByHigh: 5.0, jitterByBeat: 2.0, expansionByLow: 0, hueshiftByMid: 5.0, clearOnBeat: false },
   },
 
   'Glow Storm': {
     shape: 1, segments: 900, radius: 185, iterations: 250,
     rotationSpeed: 2.5, rotationSpeedup: 0, rotationPeriod: 80,
-    expansionH: 0.9992, expansionV: 0.9992, translationH: 0, translationV: 0,
+    expansionH: 0.9992, expansionV: 0.9992, expansionHExp: 0, expansionVExp: 0,
+    translationH: 0, translationV: 0,
     jitter: 2, wavinessPH: -1, wavinessAH: 0, wavinessPV: -1, wavinessAV: 0,
-    skipChance: 0.03, segmentRotation: 0,
+    skipChance: 0.03, segmentRotation: 0, segmentLengthening: 100, lineSwappiness: 0, revealSpeed: -1,
+    fadeInSpeed: 0, fadeOutSpeed: -1, fadeOutStart: 0, sawtoothFadeOutSize: -1, sawtoothFadeOutStart: 0,
     thickness: 0.8, lineR: 255, lineG: 80, lineB: 200, lineOpacity: 0.25,
     hueshiftSpeed: 2, bgR: 0, bgG: 0, bgB: 0,
-    blendMode: 'screen', shadowBlur: 6, lineCap: 'round',
+    blendMode: 'screen', shadowBlur: 6, lineCap: 'round', canvasNoise: 0,
     animate: true, itersPerFrame: 3,
+    loopMode: 'cycle', loopDuration: -1, clearOnLoop: true,
     audioMod: { rotByLow: 2.0, rotByBeat: 4.0, jitterByHigh: 2.0, jitterByBeat: 3.0, expansionByLow: 0.002, hueshiftByMid: 5.0, clearOnBeat: true },
   },
 }
@@ -280,26 +335,32 @@ export function hueShiftRgb(r: number, g: number, b: number, deg: number): [numb
   ]
 }
 
-/** Populate px/py arrays with the initial shape. */
+/** Populate px/py arrays with the initial shape. Supports initial rotation. */
 function initShape(
   px: Float32Array, py: Float32Array,
   cx: number, cy: number, r: number,
   shape: 1 | 2 | 3 | 4, N: number,
+  initialRotation: number = 0,
 ) {
   const s3 = Math.sqrt(3)
+  const rot = initialRotation * (Math.PI / 180)
+  const cosR = Math.cos(rot), sinR = Math.sin(rot)
+
   for (let i = 0; i < N; i++) {
     const t = i / N
+    let x = 0, y = 0
+
     switch (shape) {
       case 1:
-        px[i] = cx + r * Math.cos(2 * Math.PI * t)
-        py[i] = cy + r * Math.sin(2 * Math.PI * t)
+        x = cx + r * Math.cos(2 * Math.PI * t)
+        y = cy + r * Math.sin(2 * Math.PI * t)
         break
       case 2: {
         const side = Math.floor(4 * t), st = (4 * t) % 1
-        if      (side === 0) { px[i] = cx - r + 2*r*st; py[i] = cy - r }
-        else if (side === 1) { px[i] = cx + r;           py[i] = cy - r + 2*r*st }
-        else if (side === 2) { px[i] = cx + r - 2*r*st; py[i] = cy + r }
-        else                 { px[i] = cx - r;           py[i] = cy + r - 2*r*st }
+        if      (side === 0) { x = cx - r + 2*r*st; y = cy - r }
+        else if (side === 1) { x = cx + r;           y = cy - r + 2*r*st }
+        else if (side === 2) { x = cx + r - 2*r*st; y = cy + r }
+        else                 { x = cx - r;           y = cy + r - 2*r*st }
         break
       }
       case 3: {
@@ -310,16 +371,49 @@ function initShape(
         ]
         const side = Math.floor(3 * t), st = (3 * t) % 1
         const [x0, y0] = V[side], [x1, y1] = V[(side + 1) % 3]
-        px[i] = x0 + (x1 - x0) * st
-        py[i] = y0 + (y1 - y0) * st
+        x = x0 + (x1 - x0) * st
+        y = y0 + (y1 - y0) * st
         break
       }
       case 4:
-        px[i] = cx - r + 2 * r * t
-        py[i] = cy
+        x = cx - r + 2 * r * t
+        y = cy
         break
     }
+
+    // Apply initial rotation
+    if (initialRotation !== 0) {
+      const dx = x - cx, dy = y - cy
+      x = cx + dx * cosR - dy * sinR
+      y = cy + dx * sinR + dy * cosR
+    }
+
+    px[i] = x
+    py[i] = y
   }
+}
+
+/** Apply canvas noise if enabled */
+function applyCanvasNoise(ctx: CanvasRenderingContext2D, intensity: number, _scale: number) {
+  if (intensity <= 0) return
+
+  const canvas = ctx.canvas
+  const W = canvas.width
+  const H = canvas.height
+  const imageData = ctx.getImageData(0, 0, W, H)
+  const data = imageData.data
+
+  for (let i = 0; i < data.length; i += 4) {
+    if (Math.random() < intensity * 0.1) {
+      const noise = Math.random() > 0.5 ? 255 : 0
+      const strength = intensity * 0.3
+      data[i] = data[i] * (1 - strength) + noise * strength
+      data[i + 1] = data[i + 1] * (1 - strength) + noise * strength
+      data[i + 2] = data[i + 2] * (1 - strength) + noise * strength
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0)
 }
 
 /**
@@ -330,17 +424,71 @@ function getPixelScale(canvas: HTMLCanvasElement): number {
   return canvas.width / 512
 }
 
+/** Handle line swappiness by shuffling segments */
+function swapSegments(px: Float32Array, py: Float32Array, swappiness: number, rng: () => number) {
+  const N = px.length
+  const swaps = Math.floor(N * swappiness / 100)
+
+  for (let i = 0; i < swaps; i++) {
+    const idx1 = Math.floor(rng() * N)
+    const idx2 = Math.floor(rng() * N)
+
+    // Swap x
+    const tempX = px[idx1]
+    px[idx1] = px[idx2]
+    px[idx2] = tempX
+
+    // Swap y
+    const tempY = py[idx1]
+    py[idx1] = py[idx2]
+    py[idx2] = tempY
+  }
+}
+
+//** Check if segment should be hidden based on fade settings */
+function isSegmentVisible(
+  i: number,
+  N: number,
+  iter: number,
+  fadeOutSpeed: number,
+  fadeOutStart: number,
+  sawtoothSize: number,
+  sawtoothStart: number,
+  rng: () => number
+): boolean {
+  // Standard fade out
+  if (fadeOutSpeed > 0 && iter >= fadeOutStart) {
+    const fadeProgress = (iter - fadeOutStart) / fadeOutSpeed
+    if (rng() < fadeProgress) return false
+  }
+
+  // Sawtooth fade out
+  if (sawtoothSize > 0 && iter >= sawtoothStart) {
+    const posInCycle = (iter - sawtoothStart) % sawtoothSize
+    // Create sawtooth pattern where segments disappear gradually then reset
+    if (posInCycle < (i / N) * sawtoothSize) return false
+  }
+
+  return true
+}
+
 /** Draw one iteration onto a canvas. N controls how many segments are drawn. */
 function drawIteration(
   ctx: CanvasRenderingContext2D,
   px: Float32Array, py: Float32Array,
   N: number, hue: number, params: UjiParams, rng: () => number,
+  iter: number,
   scale = 1,
 ) {
   const [lr, lg, lb] = hueShiftRgb(params.lineR, params.lineG, params.lineB, hue)
   const blendMode  = params.blendMode  ?? 'source-over'
   const shadowBlur = params.shadowBlur ?? 0
   const capMode    = params.lineCap    ?? 'auto'
+  const fadeOutSpeed = params.fadeOutSpeed ?? -1
+  const fadeOutStart = params.fadeOutStart ?? 0
+  const sawtoothSize = params.sawtoothFadeOutSize ?? -1
+  const sawtoothStart = params.sawtoothFadeOutStart ?? 0
+  const lengthening = (params.segmentLengthening ?? 100) / 100
 
   ctx.globalCompositeOperation = blendMode as GlobalCompositeOperation
   ctx.strokeStyle = `rgba(${lr},${lg},${lb},${params.lineOpacity})`
@@ -354,22 +502,63 @@ function drawIteration(
     ctx.shadowColor = `rgba(${lr},${lg},${lb},0.9)`
   }
 
+  // Apply line swappiness before drawing
+  if ((params.lineSwappiness ?? 0) > 0 && iter === 0) {
+    swapSegments(px, py, params.lineSwappiness!, rng)
+  }
+
   ctx.beginPath()
   if (params.segmentRotation !== 0) {
     const sr = params.segmentRotation * (Math.PI / 180)
     const cosSR = Math.cos(sr), sinSR = Math.sin(sr)
     for (let i = 1; i < N; i++) {
       if (params.skipChance > 0 && rng() < params.skipChance) continue
+
+      // Check fade visibility
+      if (!isSegmentVisible(i, N, iter, fadeOutSpeed, fadeOutStart,
+                            sawtoothSize, sawtoothStart, rng)) continue
+
+      // Check fade-in
+      const fadeInSpeed = params.fadeInSpeed ?? 0
+      if (fadeInSpeed > 0) {
+        const expectedIter = Math.floor(i / N * fadeInSpeed)
+        if (iter < expectedIter) continue
+      }
+
       const mx = (px[i] + px[i-1]) / 2, my = (py[i] + py[i-1]) / 2
       const dx1 = px[i-1]-mx, dy1 = py[i-1]-my, dx2 = px[i]-mx, dy2 = py[i]-my
-      ctx.moveTo(mx + dx1*cosSR - dy1*sinSR, my + dx1*sinSR + dy1*cosSR)
-      ctx.lineTo(mx + dx2*cosSR - dy2*sinSR, my + dx2*sinSR + dy2*cosSR)
+
+      // Apply segment lengthening
+      const lScale = lengthening
+      ctx.moveTo(mx + dx1*cosSR*lScale - dy1*sinSR*lScale, my + dx1*sinSR*lScale + dy1*cosSR*lScale)
+      ctx.lineTo(mx + dx2*cosSR*lScale - dy2*sinSR*lScale, my + dx2*sinSR*lScale + dy2*cosSR*lScale)
     }
   } else {
     ctx.moveTo(px[0], py[0])
     for (let i = 1; i < N; i++) {
       if (params.skipChance > 0 && rng() < params.skipChance) {
         ctx.moveTo(px[i], py[i])
+        continue
+      }
+
+      // Check fade visibility
+      if (!isSegmentVisible(i, N, iter, fadeOutSpeed, fadeOutStart,
+                            sawtoothSize, sawtoothStart, rng)) continue
+
+      // Check fade-in
+      const fadeInSpeed = params.fadeInSpeed ?? 0
+      if (fadeInSpeed > 0) {
+        const expectedIter = Math.floor(i / N * fadeInSpeed)
+        if (iter < expectedIter) continue
+      }
+
+      // Apply segment lengthening by interpolating from center
+      if (lengthening !== 1) {
+        const mx = (px[i] + px[i-1]) / 2
+        const my = (py[i] + py[i-1]) / 2
+        const dx = px[i] - mx
+        const dy = py[i] - my
+        ctx.lineTo(mx + dx * lengthening, my + dy * lengthening)
       } else {
         ctx.lineTo(px[i], py[i])
       }
@@ -400,6 +589,9 @@ export function renderUji(
   const oy = H * (params.rotationOriginV ?? 0.5)
   const rotationUntil = params.rotationUntil ?? -1
   const revealSpeed   = params.revealSpeed   ?? -1
+  const expHExp       = params.expansionHExp ?? 0
+  const expVExp       = params.expansionVExp ?? 0
+  const initialRotation = params.initialRotation ?? 0
 
   const N = quality === 'preview'
     ? Math.max(80,  Math.round(params.segments   * 0.5))
@@ -409,12 +601,13 @@ export function renderUji(
     : params.iterations
 
   const ctx = canvas.getContext('2d')!
-  ctx.fillStyle = `rgb(${params.bgR},${params.bgG},${params.bgB})`
+  const bgOpacity = params.bgOpacity ?? 1
+  ctx.fillStyle = `rgba(${params.bgR},${params.bgG},${params.bgB},${bgOpacity})`
   ctx.fillRect(0, 0, W, H)
 
   const px = new Float32Array(N)
   const py = new Float32Array(N)
-  initShape(px, py, cx, cy, params.radius * S, params.shape, N)
+  initShape(px, py, cx, cy, params.radius * S, params.shape, N, initialRotation)
 
   let rngState = ((seed ?? Math.random() * 1e9) | 0) >>> 0
   const rng = (): number => {
@@ -435,14 +628,20 @@ export function renderUji(
     }
     const cosA = Math.cos(angle), sinA = Math.sin(angle)
 
+    // Calculate expansion with optional exponential factors
+    let expH = params.expansionH
+    let expV = params.expansionV
+    if (expHExp !== 0) expH += expHExp * n * 0.001
+    if (expVExp !== 0) expV += expVExp * n * 0.001
+
     for (let i = 0; i < N; i++) {
       let x = px[i], y = py[i]
       if (params.jitter > 0) { x += (rng() - 0.5) * params.jitter * S; y += (rng() - 0.5) * params.jitter * S }
       if (params.wavinessPH > 0) x += params.wavinessAH * S * Math.sin(2 * Math.PI * i / params.wavinessPH)
       if (params.wavinessPV > 0) y += params.wavinessAV * S * Math.sin(2 * Math.PI * i / params.wavinessPV)
       // Expansion always relative to canvas centre
-      x = cx + (x - cx) * params.expansionH
-      y = cy + (y - cy) * params.expansionV
+      x = cx + (x - cx) * expH
+      y = cy + (y - cy) * expV
       x += params.translationH * S
       y += params.translationV * S
       // Rotation around custom pivot (defaults to canvas centre)
@@ -455,7 +654,12 @@ export function renderUji(
     const drawN = revealSpeed <= 0 ? N : Math.floor(revealedCount)
 
     hue += params.hueshiftSpeed
-    if (drawN > 1) drawIteration(ctx, px, py, drawN, hue, params, rng, S)
+    if (drawN > 1) drawIteration(ctx, px, py, drawN, hue, params, rng, n, S)
+  }
+
+  // Apply canvas noise if enabled
+  if ((params.canvasNoise ?? 0) > 0) {
+    applyCanvasNoise(ctx, params.canvasNoise!, S)
   }
 }
 
@@ -495,13 +699,15 @@ export class UjiAnimator {
     const { canvas, ctx, params } = this
     this._S = getPixelScale(canvas)
     const N = params.segments
+    const initialRotation = params.initialRotation ?? 0
     this.px = new Float32Array(N)
     this.py = new Float32Array(N)
     this.hue = 0
     this.iteration = 0
     this.revealedCount = (params.revealSpeed ?? -1) <= 0 ? N : 0
-    initShape(this.px, this.py, canvas.width/2, canvas.height/2, params.radius * this._S, params.shape, N)
-    ctx.fillStyle = `rgb(${params.bgR},${params.bgG},${params.bgB})`
+    initShape(this.px, this.py, canvas.width/2, canvas.height/2, params.radius * this._S, params.shape, N, initialRotation)
+    const bgOpacity = params.bgOpacity ?? 1
+    ctx.fillStyle = `rgba(${params.bgR},${params.bgG},${params.bgB},${bgOpacity})`
     ctx.fillRect(0, 0, canvas.width, canvas.height)
   }
 
@@ -520,14 +726,15 @@ export class UjiAnimator {
     if (this.px.length !== N) {
       this.px = new Float32Array(N)
       this.py = new Float32Array(N)
-      initShape(this.px, this.py, cx, cy, params.radius * this._S, params.shape, N)
+      initShape(this.px, this.py, cx, cy, params.radius * this._S, params.shape, N, params.initialRotation ?? 0)
       this.hue = 0
       this.iteration = 0
       this.revealedCount = revealSpeed <= 0 ? N : 0
     }
 
     if (am.clearOnBeat && beat > 0.85 && this._prevBeat <= 0.85) {
-      ctx.fillStyle = `rgba(${params.bgR},${params.bgG},${params.bgB},0.55)`
+      const bgOpacity = params.bgOpacity ?? 1
+      ctx.fillStyle = `rgba(${params.bgR},${params.bgG},${params.bgB},${0.55 * bgOpacity})`
       ctx.fillRect(0, 0, canvas.width, canvas.height)
     }
     this._prevBeat = beat
@@ -537,8 +744,12 @@ export class UjiAnimator {
 
       const rotSpeed = params.rotationSpeed + am.rotByLow * low + am.rotByBeat * beat
       const jitter   = Math.max(0, params.jitter + am.jitterByHigh * high + am.jitterByBeat * beat)
-      const expH     = params.expansionH + am.expansionByLow * low
-      const expV     = params.expansionV + am.expansionByLow * low
+      let expH       = params.expansionH + am.expansionByLow * low
+      let expV       = params.expansionV + am.expansionByLow * low
+
+      // Apply exponential expansion factors
+      if ((params.expansionHExp ?? 0) !== 0) expH += (params.expansionHExp ?? 0) * n * 0.001
+      if ((params.expansionVExp ?? 0) !== 0) expV += (params.expansionVExp ?? 0) * n * 0.001
 
       let angle = 0
       if (rotationUntil < 0 || n < rotationUntil) {
@@ -567,13 +778,57 @@ export class UjiAnimator {
       const drawN = revealSpeed <= 0 ? N : Math.floor(this.revealedCount)
 
       this.hue += params.hueshiftSpeed + am.hueshiftByMid * mid
-      if (drawN > 1) drawIteration(ctx, this.px, this.py, drawN, this.hue, params, () => this.rng(), S)
+      if (drawN > 1) drawIteration(ctx, this.px, this.py, drawN, this.hue, params, () => this.rng(), n, S)
 
-      this.iteration = (this.iteration + 1) % params.iterations
+      // Advanced loop modes
+      const loopMode = params.loopMode ?? 'cycle'
+      const loopDuration = params.loopDuration ?? -1
+      const maxIterations = loopDuration > 0 ? loopDuration : params.iterations
 
-      // Reveal reset on loop (for revealSpeed animations)
-      if (this.iteration === 0 && revealSpeed > 0) {
-        this.revealedCount = 0
+      this.iteration++
+
+      // Check if we need to loop/reset
+      if (this.iteration >= maxIterations) {
+        switch (loopMode) {
+          case 'once':
+            // Stop at end - freeze on last frame
+            this.iteration = maxIterations - 1
+            break
+
+          case 'cycle':
+            // Reset to start (default behavior)
+            this.iteration = 0
+            if (params.clearOnLoop !== false) {
+              const bgOpacity = params.bgOpacity ?? 1
+              ctx.fillStyle = `rgba(${params.bgR},${params.bgG},${params.bgB},${bgOpacity})`
+              ctx.fillRect(0, 0, canvas.width, canvas.height)
+            }
+            break
+
+          case 'pingpong':
+            // Not fully implemented - would need direction tracking
+            // For now, just cycle
+            this.iteration = 0
+            if (params.clearOnLoop !== false) {
+              const bgOpacity = params.bgOpacity ?? 1
+              ctx.fillStyle = `rgba(${params.bgR},${params.bgG},${params.bgB},${bgOpacity})`
+              ctx.fillRect(0, 0, canvas.width, canvas.height)
+            }
+            break
+
+          case 'infinite':
+            // Just continue incrementing (no modulo)
+            // This allows continuous expansion/growth
+            break
+
+          default:
+            this.iteration = 0
+        }
+
+        // Reveal reset on loop (for revealSpeed animations)
+        if (revealSpeed > 0) {
+          this.revealedCount = 0
+        }
       }
     }
   }
@@ -583,7 +838,8 @@ export class UjiAnimator {
    */
   softFade(alpha = 0.08): void {
     const { ctx, canvas, params } = this
-    ctx.fillStyle = `rgba(${params.bgR},${params.bgG},${params.bgB},${alpha})`
+    const bgOpacity = params.bgOpacity ?? 1
+    ctx.fillStyle = `rgba(${params.bgR},${params.bgG},${params.bgB},${alpha * bgOpacity})`
     ctx.fillRect(0, 0, canvas.width, canvas.height)
   }
 

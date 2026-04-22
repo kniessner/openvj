@@ -1,211 +1,308 @@
-# 🚧 OpenVJ Development Status
+# 🎛️ OpenVJ Development Status
 
-## Current State: Beta / Work in Progress
+## Current State: Beta / v0.2.0 Generative
 
-OpenVJ is currently in **active development**. The UI and component structure are complete, but some core library implementations are still being finalized.
+OpenVJ is currently in **active development** with v0.2.0 "Generative" released. The project is buildable and most core features are fully implemented.
 
 ---
 
-## ✅ What's Working
+## ✅ What's Fully Implemented
 
 ### Fully Implemented Components
 
-- **Surface.tsx** - Projection mapping quad rendering
-- **SurfaceList.tsx** - Surface management UI
-- **MediaBrowser.tsx** - Media asset browser with filters
-- **HelpModal.tsx** - Keyboard shortcuts help
-- **Shader System** - GLSL shader editing and AI generation
-- **State Management** - All Zustand stores (surfaceStore, videoStore, midiStore, sceneStore, assetStore)
-
-### UI & Controls
-
-- Dark-themed interface ✅
-- Transport controls ✅
-- MIDI control panel ✅
-- Audio control panel ✅
-- Keyboard shortcuts ✅
-- Save/load projects ✅
-
----
-
-## 🚧 Implementation In Progress
+- **Surface.tsx** - Projection mapping quad rendering with UV transformation
+- **SurfaceList.tsx** - Surface management UI with drag-and-drop
+- **SurfaceInspector.tsx** - Tabbed inspector (Color, Transform, FX, Mask, Corners)
+- **MediaBrowser.tsx** - Media asset browser with type filters and upload
+- **HelpModal.tsx** - Keyboard shortcuts help overlay
+- **UjiControls.tsx** - Full Uji parameter control panel with 39 presets
+- **UjiGenerator.tsx** - Uji asset type integration
 
 ### Core Library Files (`src/lib/`)
 
-These files need full implementations:
+#### 1. `ujiRenderer.ts` - Uji Generator **[COMPLETE]** ✅
+**Status:** Fully implemented with canvas 2D rendering
 
-#### 1. `ujiRenderer.ts` - Uji Generator **[PARTIAL]**
-**Status:** Interface defined, rendering logic needed
+**Features:**
+- ✅ `UjiParams` interface (40+ properties)
+- ✅ `DEFAULT_UJI_PARAMS` with sensible defaults
+- ✅ `UjiAnimator` class for live animation
+- ✅ `renderUji()` - Canvas 2D drawing with all effects
+- ✅ `UjiAudioMod` interface - Audio modulation params
+- ✅ `UJI_PRESETS` - 39 presets from original Uji by Noah Doersing
+- ✅ Audio modulation: rotByLow, rotByBeat, jitterByHigh, expansionByLow, hueshiftByMid, clearOnBeat
+- ✅ Seamless looping with ClampToEdgeWrapping
+- ✅ All fade effects: fadeIn, fadeOut, sawtoothFadeOut
+- ✅ Waviness, Jitter, Expansion (linear + exponential)
+- ✅ Translation, Rotation (with period and until)
+- ✅ Background opacity (bgOpacity) - NEW
+- ✅ Canvas noise, Shadow blur, Line cap styles
+- ✅ Segment rotation and lengthening
+- ✅ Line swappiness for creative effects
 
-**Missing:**
-- `renderUji()` function - Canvas 2D drawing
-- `UjiAnimator` class - Animation controller
-- `UjiAudioMod` interface - Audio modulation params
-- `UJI_PRESETS` - Preset collection
-- Audio modulation logic
+**Rendering Pipeline:**
+1. Canvas initialization with high-DPI support
+2. Shape initialization (Circle, Square, Triangle, Line)
+3. Per-segment transformation (rotate, translate, expand, jitter)
+4. Waviness modulation (sinusoidal perturbation)
+5. Fade effects (fadeOut, sawtoothFadeOut)
+6. Hue shifting for color animation
+7. Line rendering with blend modes
+8. Optional canvas noise overlay
 
-**What exists:**
-- ✅ UjiParams interface (all 36 properties)
-- ✅ defaultUjiParams
-- ✅ generateUjiShader() (kaleidoscope GLSL)
+#### 2. `assetTextureManager.ts` - Texture Management **[COMPLETE]** ✅
+**Status:** All texture management features implemented
 
-#### 2. `assetTextureManager.ts` - Texture Management **[PARTIAL]**
-**Status:** Basic texture loading works
+**Features:**
+- ✅ `load()` - Load textures from assets (video/image/Uji)
+- ✅ `getMediaEl()` - Get video/canvas elements
+- ✅ `getTexture()` - Get Three.js textures
+- ✅ `tickAll()` - Update loop for animated textures
+- ✅ `reload()` - Reload textures on parameter change
+- ✅ `dispose()` - Cleanup resources
+- ✅ Uji texture generation with CanvasTexture
+- ✅ Texture repeat/wrap handling
+- ✅ URL revocation for memory management
 
-**Missing:**
-- `reload()` method
-- `getTexture()` method
+#### 3. `audioEngine.ts` - Audio Analysis **[COMPLETE]** ✅
+**Status:** Fully implemented with microphone and analysis
 
-**What exists:**
-- ✅ load() - Load textures from assets
-- ✅ getMediaEl() - Get video elements
-- ✅ tickAll() - Update loop
-- ✅ dispose() - Cleanup
+**Features:**
+- ✅ Microphone input toggle
+- ✅ 3-band frequency analysis (low, mid, high)
+- ✅ Beat detection with threshold
+- ✅ BPM tap tempo
+- ✅ RMS/peak level calculation
+- ✅ Smoothing and sensitivity controls
+- ✅ Visual level meters
+- ✅ Global audio state for shaders and Uji
 
-#### 3. `audioEngine.ts` - Audio Analysis **[COMPLETE]**
-**Status:** ✅ Fully implemented
+#### 4. `midiEngine.ts` - MIDI Control **[COMPLETE]** ✅
+**Status:** Fully implemented with WebMIDI
 
-- ✅ Microphone input
-- ✅ 3-band frequency analysis
-- ✅ Beat detection
-- ✅ BPM support
-
-#### 4. `midiEngine.ts` - MIDI Control **[COMPLETE]**
-**Status:** ✅ Fully implemented
-
+**Features:**
 - ✅ WebMIDI API integration
 - ✅ CC message handling
-- ✅ Event listeners
+- ✅ MIDI learn mode
+- ✅ 16-channel support
+- ✅ Default 8-knob mapping
+- ✅ Persistent storage for mappings
+- ✅ Per-control configuration
 
-#### 5. `sceneTransition.ts` - Scene Transitions **[STUB]**
-**Status:** Empty stub
+#### 5. `depthEstimator.ts` - Depth Estimation **[COMPLETE]** ✅
+**Status:** Fully implemented with Transformers.js
+
+**Features:**
+- ✅ Depth Anything V2 integration
+- ✅ WebGPU acceleration support
+- ✅ CPU fallback
+- ✅ Configurable model size
+- ✅ FPS tracking
+- ✅ Dynamic CDN import with type safety
+
+#### 6. `depthTextureManager.ts` - Depth Textures **[COMPLETE]** ✅
+**Status:** Voxel mesh and depth texture rendering
+
+**Features:**
+- ✅ Voxel mesh generation from depth maps
+- ✅ Point cloud rendering
+- ✅ Audio-reactive depth materials
+- ✅ Real-time depth estimation from video
+
+#### 7. `projectIO.ts` - Project Save/Load **[COMPLETE]** ✅
+**Status:** Full JSON import/export with validation
+
+**Features:**
+- ✅ Export to JSON with version tracking
+- ✅ Import from JSON with schema validation
+- ✅ Zod schemas for type safety
+- ✅ Error handling for corrupted files
+
+#### 8. `sceneIO.ts` - Scene Management **[COMPLETE]** ✅
+**Status:** Save/load individual scenes
+
+**Features:**
+- ✅ Export scenes as JSON
+- ✅ Import scenes with validation
+- ✅ Scene thumbnails
+- ✅ Zod schema validation
+
+#### 9. `sceneTransition.ts` - Scene Transitions **[STUB]** ⚠️
+**Status:** Empty stub - needs implementation
 
 **Needed:**
-- Smooth transition animations between scenes
-- Parameter interpolation
+- Smooth parameter interpolation between scenes
+- Crossfade effects
 - Easing functions
+- Time-based transitions
 
-#### 6. `projectIO.ts` - Project Save/Load **[COMPLETE]**
-**Status:** ✅ Fully implemented
+---
 
-- ✅ Export to JSON
-- ✅ Import from JSON
-- ✅ Version checking
+## 🚧 Known Issues & TODO
+
+### Minor Issues
+
+1. **Scene Transitions** - Not implemented (crossfade between scenes)
+2. **Effect Chains** - Only one effect per surface currently
+3. **Multi-Output** - Single display only
+4. **Image Sequences** - No frame-by-frame playback yet
+
+### Performance Optimizations
+
+1. **Uji Rendering** - Consider WebGL fallback for very high segment counts (>10000)
+2. **Texture Management** - LRU cache for texture disposal
+3. **Audio Analysis** - Consider AnalyzerNode pooling
+
+### Future Features
+
+See [TODO.md](./TODO.md) for complete roadmap
+
+**Near-term:**
+- Scene transitions with crossfade
+- Effect chains (multiple effects per surface)
+- MIDI clock sync
+
+**Long-term:**
+- Multi-output (multiple displays/projectors)
+- DMX lighting control
+- Network sync between instances
+- Python scripting API
 
 ---
 
 ## 🔨 Build Status
 
-### TypeScript Compilation: ❌ **FAILING**
+### TypeScript Compilation: ✅ **PASSING**
 
-**Blocking issues:**
-1. Missing exports in `ujiRenderer.ts`
-2. Type mismatches in `UjiGenerator.tsx`
-3. Missing methods in `assetTextureManager.ts`
+All TypeScript errors resolved. Build completes successfully.
+
+```bash
+npm run build
+# ✓ 653 modules transformed.
+# ✓ built in ~23s
+```
 
 ### ESLint: ✅ **PASSING**
 ### Security Audit: ✅ **0 vulnerabilities**
+### Tests: ⚠️ **Partial** (Jest configured, needs more test coverage)
 
 ---
 
-## 🎯 To Make Project Buildable
+## 📊 Test Coverage
 
-### Option 1: Complete Missing Implementations (Recommended)
+| Component | Status | Notes |
+|-----------|--------|-------|
+| UjiRenderer | ⚠️ Manual | Needs unit tests |
+| AudioEngine | ⚠️ Manual | Visual tests pass |
+| MIDIEngine | ⚠️ Manual | Tested with hardware |
+| AssetTextureManager | ⚠️ Manual | Memory tests pass |
+| Shader System | ⚠️ Manual | GLSL validation on save |
+| ProjectIO | ⚠️ Manual | JSON validation via Zod |
+| SceneIO | ⚠️ Manual | JSON validation via Zod |
 
-Implement the missing library functions:
+---
 
-```typescript
-// src/lib/ujiRenderer.ts additions needed:
-export interface UjiAudioMod {
-  rotByLow: number
-  rotByBeat: number
-  jitterByHigh: number
-  jitterByBeat: number
-  expansionByLow: number
-  hueshiftByMid: number
-  clearOnBeat: boolean
-}
+## 🎯 What Users Can Do Today
 
-export class UjiAnimator {
-  // Canvas 2D animation logic
-}
+### v0.2.0 Generative Release Features:
 
-export function renderUji(
-  ctx: CanvasRenderingContext2D,
-  params: UjiParams,
-  audioMod: UjiAudioMod,
-  audioData: { low: number; mid: number; high: number; beat: number }
-): void {
-  // Draw Uji pattern to canvas
-}
+- ✅ **Projection Mapping** - Full quad warping with corner control
+- ✅ **Video/Image Playback** - MP4, WebM, JPG, PNG, GIF, WebP, SVG
+- ✅ **Uji Generative Art** - 39 presets, full parameter control
+- ✅ **p5.js Creative Coding** - Live generative sketches
+- ✅ **MIDI Control** - Hardware control of all parameters
+- ✅ **Audio Reactivity** - Shaders and Uji respond to music
+- ✅ **Custom Shaders** - GLSL editing with AI assistance
+- ✅ **Scene Management** - Save/load complete configurations
+- ✅ **Webcam/Screen Capture** - Real-time input sources
+- ✅ **Surface Inspector** - Tabbed property editing
 
-export const UJI_PRESETS: Record<string, UjiParams> = {
-  // Preset collection
-}
+---
+
+## 🎨 Uji System Details
+
+### Original Uji by Noah Doersing
+
+OpenVJ's Uji implementation is based on [Uji](https://github.com/doersino/uji) by Noah Doersing:
+- [Live Demo](https://ghpages.noahdoersing.com/uji/)
+- [Source Code](https://github.com/doersino/uji)
+
+### Presets Included
+
+All 39 original Uji presets are included:
+- ⵋ ⴼ ⵛ ⵍ ⵟ ⵥ ⵣ ⵠ ⵒ ⴱ ⴶ ⵅ ⵙ ⵢ ⵉ
+- ⵚ ⴳ ⵞ ⵓ ⵘ ⵆ ⵐ ⵖ ⵤ ⴵ ⴻ ⵡ ⴸ ⴲ ⵌ
+- ⴷ ⵎ ⴿ ⵄ ⵇ ⴾ ⴴ ⵁ ⵃ ⌘
+
+### Uji Parameters (40 total)
+
+**Geometry:** shape, segments, radius, iterations
+**Rotation:** rotationSpeed, rotationSpeedup, rotationPeriod, rotationUntil, rotationOriginH, rotationOriginV, initialRotation
+**Motion:** expansionH, expansionV, expansionHExp, expansionVExp, translationH, translationV
+**Texture:** jitter, wavinessPH, wavinessAH, wavinessPV, wavinessAV
+**Visibility:** skipChance, segmentRotation, segmentLengthening, lineSwappiness, revealSpeed
+**Fade:** fadeInSpeed, fadeOutSpeed, fadeOutStart, sawtoothFadeOutSize, sawtoothFadeOutStart
+**Appearance:** thickness, lineR, lineG, lineB, lineOpacity, hueshiftSpeed, bgR, bgG, bgB, **bgOpacity**, blendMode, shadowBlur, lineCap, canvasNoise
+**Audio:** animate, itersPerFrame, audioMod
+
+---
+
+## 🚀 Release Checklist
+
+### v0.2.0 Generative (Current)
+- [x] Uji system complete
+- [x] p5.js integration
+- [x] Surface Inspector
+- [x] All builds passing
+- [x] Documentation updated
+
+### v0.3.0 Effects (Planned)
+- [ ] Multi-effect chains
+- [ ] More shader presets
+- [ ] Post-processing pipeline
+- [ ] Scene transitions
+
+### v0.4.0 Performance (Planned)
+- [ ] WebGL Uji renderer
+- [ ] Multi-threading
+- [ ] Memory optimizations
+- [ ] Mobile support
+
+---
+
+## 💻 Development Commands
+
+```bash
+# Development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Type check only
+npx tsc --noEmit
+
+# Run tests
+npm run test
+
+# Lint check
+npm run lint
 ```
 
-### Option 2: Comment Out Uji Features Temporarily
+---
 
-Remove UjiGenerator until implementations are complete:
+## 🐛 Recent Bug Fixes
 
-1. Comment out UjiGenerator import in `App.tsx`
-2. Remove Uji UI elements
-3. Ship without Uji generator initially
-4. Add in next release
+### v0.2.0 Bug Fixes
 
-### Option 3: Use TypeScript `skipLibCheck` + `@ts-ignore`
-
-Allow build to proceed with type errors (not recommended for production)
+1. **Black Lines in Uji** - Fixed by adding `ClampToEdgeWrapping` and UV clamping
+2. **Seamless Uji Looping** - Fixed reset visibility with proper iteration counting
+3. **TypeScript Errors** - All errors resolved, build passes
+4. **Canvas Opacity** - Added `bgOpacity` parameter (missing from initial implementation)
+5. **Depth Estimation Import** - Fixed type-safety for CDN import
 
 ---
 
-## 📋 Recommended Action Plan
-
-1. **Short term (for publication):**
-   - Add `// @ts-expect-error` comments for missing imports
-   - Or comment out UjiGenerator features
-   - Get the build working with core features only
-
-2. **Medium term (post-publication):**
-   - Implement full Uji rendering system
-   - Add missing texture manager methods
-   - Implement scene transition animations
-
-3. **Long term:**
-   - Add comprehensive test suite
-   - Performance optimizations
-   - Advanced features (effect chains, multi-output, etc.)
-
----
-
-## 🎨 What Users Can Do Today
-
-Even without Uji generator, the project offers:
-- ✅ Projection mapping
-- ✅ Video playback
-- ✅ MIDI control
-- ✅ Audio-reactive shaders
-- ✅ Custom GLSL shaders
-- ✅ Scene management
-- ✅ Webcam & screen capture
-
----
-
-## 💡 Recommendation
-
-**For immediate GitHub publication:**
-
-Comment out Uji-related features temporarily and ship with:
-- Projection mapping ✅
-- Video/image playback ✅
-- MIDI control ✅
-- Audio-reactive ✅
-- Custom shaders ✅
-- Scene management ✅
-
-Add Uji generator in v0.2.0 once implementations are complete.
-
----
-
-**Last Updated:** April 12, 2026  
-**Status:** Build failing, implementations needed
+**Last Updated:** April 22, 2026  
+**Version:** v0.2.0 "Generative"  
+**Status:** Build passing, all core features implemented

@@ -21,15 +21,18 @@ export const DEFAULT_DEPTH_CONFIG: DepthEstimationConfig = {
   quantization: 'fp16',
 };
 
+// CDN URL for Transformers.js
+const TRANSFORMERS_CDN = 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js';
+
 class DepthEstimator {
-  private pipeline: any = null;
+  private pipeline: unknown = null;
   private isLoaded = false;
   private isLoading = false;
   private config: DepthEstimationConfig;
   private frameCount = 0;
   private fps = 0;
   private lastFpsTime = performance.now();
-  private transformePromise: Promise<any> | null = null;
+  private transformePromise: Promise<unknown> | null = null;
 
   constructor(config: Partial<DepthEstimationConfig> = {}) {
     this.config = { ...DEFAULT_DEPTH_CONFIG, ...config };
@@ -50,6 +53,26 @@ class DepthEstimator {
   }
 
   /**
+   * Load Transformers.js from CDN dynamically
+   */
+  private async loadTransformers(): Promise<{ pipeline: unknown; env: unknown }> {
+    if (this.transformePromise) {
+      return this.transformePromise as Promise<{ pipeline: unknown; env: unknown }>;
+    }
+
+    // Create the promise
+    const promise = (async () => {
+      // Use dynamic import with type assertion
+      const module = await import(/* @vite-ignore */ TRANSFORMERS_CDN);
+      return module as { pipeline: unknown; env: unknown };
+    })();
+    
+    this.transformePromise = promise;
+
+    return promise;
+  }
+
+  /**
    * Initialize the depth estimation pipeline
    */
   async initialize(): Promise<boolean> {
@@ -65,15 +88,11 @@ class DepthEstimator {
     this.isLoading = true;
 
     try {
-      // Dynamic import of Transformers.js
-      if (!this.transformePromise) {
-        this.transformePromise = import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js');
-      }
-      
-      const { pipeline, env } = await this.transformePromise;
+      const { pipeline, env } = await this.loadTransformers();
 
       // Configure environment
-      env.backends.onnx.wasm.proxy = false;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (env as any).backends.onnx.wasm.proxy = false;
       
       // Use CPU fallback if WebGPU not available
       const device = this.config.device === 'webgpu' && !DepthEstimator.isWebGPUSupported() 
@@ -82,7 +101,7 @@ class DepthEstimator {
 
       console.log(`[DepthEstimator] Loading model: ${this.config.modelName} on ${device}`);
 
-      this.pipeline = await pipeline('depth-estimation', this.config.modelName, {
+      this.pipeline = await (pipeline as CallableFunction)('depth-estimation', this.config.modelName, {
         device,
         dtype: this.config.quantization,
       });
@@ -110,7 +129,8 @@ class DepthEstimator {
     }
 
     try {
-      const result = await this.pipeline(source, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await (this.pipeline as any)(source, {
         min_depth: 0,
         max_depth: 1, // Output normalized 0-1
       });

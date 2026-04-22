@@ -14,6 +14,7 @@ export function SurfaceInspector({ surface, onEditShader, onClose }: SurfaceInsp
   const { updateSurfaceProps, resetSurface } = useSurfaceStore()
   const { assets } = useAssetStore()
   const [activeTab, setActiveTab] = useState<'color' | 'transform' | 'fx' | 'mask' | 'corners'>('color')
+  const [ujiExpanded, setUjiExpanded] = useState(true)
 
   // Get the asset associated with this surface (if any)
   const asset = useMemo(() => 
@@ -89,13 +90,6 @@ export function SurfaceInspector({ surface, onEditShader, onClose }: SurfaceInsp
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
-        {/* Uji Controls - only for Uji assets */}
-        {isUjiAsset && asset && (
-          <div className="pb-4 border-b border-[#d4f542]/30">
-            <UjiControls asset={asset} disabled={surface.locked} />
-          </div>
-        )}
-
         {/* Opacity & Blend - always visible */}
         <div className="space-y-3 pb-4 border-b border-gray-700/60">
           <Slider label="Opacity" value={surface.opacity ?? 0.95} min={0} max={1}
@@ -317,6 +311,34 @@ export function SurfaceInspector({ surface, onEditShader, onClose }: SurfaceInsp
         >
           Reset to Default
         </button>
+
+        {/* Uji Controls - collapsible section at bottom */}
+        {isUjiAsset && asset && (
+          <div className="pt-4 border-t border-[#d4f542]/30">
+            <button
+              onClick={() => setUjiExpanded(!ujiExpanded)}
+              className="w-full flex items-center justify-between py-2 text-xs font-semibold text-[#d4f542] uppercase hover:bg-gray-800/50 rounded px-2 -mx-2 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <span>Uji Generator</span>
+                <span className="text-[10px] text-gray-500 font-normal">Asset Settings</span>
+              </span>
+              <svg
+                className={`w-4 h-4 transition-transform ${ujiExpanded ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {ujiExpanded && (
+              <div className="mt-3">
+                <UjiControls asset={asset} disabled={surface.locked} />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

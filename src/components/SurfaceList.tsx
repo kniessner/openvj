@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import {
   Mesh,
   OrthographicCamera,
@@ -278,16 +278,7 @@ function IconTrash() {
   )
 }
 
-function IconChevron({ open }: { open: boolean }) {
-  return (
-    <svg
-      className={`w-3.5 h-3.5 transition-transform duration-150 ${open ? 'rotate-90' : ''}`}
-      fill="none" stroke="currentColor" viewBox="0 0 24 24"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-    </svg>
-  )
-}
+
 
 // ─── Surface Shader Editor ───────────────────────────────────────────────────
 
@@ -713,44 +704,6 @@ void main() {
 
 // ─── Slider ──────────────────────────────────────────────────────────────────
 
-interface SliderProps {
-  label: string
-  value: number
-  min: number
-  max: number
-  step?: number
-  displayValue?: string
-  onChange: (v: number) => void
-  disabled?: boolean
-}
-
-function Slider({ label, value, min, max, step = 0.01, displayValue, onChange, disabled }: SliderProps) {
-  const pct = ((value - min) / (max - min)) * 100
-  return (
-    <div className="space-y-2">
-      <div className="flex justify-between items-baseline gap-2">
-        <span className="text-[11px] text-gray-400 font-medium uppercase tracking-wide leading-none select-none">{label}</span>
-        <span className="text-sm font-semibold font-mono text-[#d4f542] tabular-nums leading-none shrink-0">
-          {displayValue ?? value.toFixed(2)}
-        </span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-full cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-        style={{
-          background: `linear-gradient(to right, #d4f542 ${pct}%, #2d3748 ${pct}%)`,
-        }}
-      />
-    </div>
-  )
-}
-
 // ─── Corner Nudge ────────────────────────────────────────────────────────────
 
 const QUAD_CORNER_NAMES = ['Top Left', 'Top Right', 'Bottom Right', 'Bottom Left']
@@ -1058,7 +1011,6 @@ export function SurfaceList({ collapsed = false, onToggle }: SurfaceListProps = 
   const [renameGroupVal, setRenameGroupVal] = useState('')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const activeSurface = surfaces.find((s) => s.id === activeSurfaceId) ?? null
   const [presetsOpen, setPresetsOpen] = useState(false)
   const [editingSurfaceId, setEditingSurfaceId] = useState<string | null>(null)
   const editingSurface = surfaces.find((s) => s.id === editingSurfaceId) ?? null

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { UjiParams, DEFAULT_UJI_PARAMS, UJI_PRESETS, UJI_PRESETS_FROM_ORIGINAL, UjiBlendMode, DEFAULT_AUDIO_MOD } from '../lib/ujiRenderer'
+import { UjiParams, DEFAULT_UJI_PARAMS, UJI_PRESETS, UjiBlendMode, DEFAULT_AUDIO_MOD } from '../lib/ujiRenderer'
+import { UJI_PRESETS_FROM_ORIGINAL } from '../lib/ujiPresets'
 import { useAssetStore, Asset } from '../stores/assetStore'
 import { assetTextureManager } from '../lib/assetTextureManager'
 
@@ -27,12 +28,10 @@ export function UjiControls({ asset, disabled }: UjiControlsProps) {
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current)
     }
-    updateTimeoutRef.current = setTimeout(() => {
+    updateTimeoutRef.current = setTimeout(async () => {
       updateAsset(asset.id, { ujiParams: newParams })
-      // Force texture refresh for non-animated uji
-      if (!newParams.animate) {
-        assetTextureManager.dispose(asset.id)
-      }
+      // Force texture refresh - reload for both animated and non-animated
+      await assetTextureManager.reload({ ...asset, ujiParams: newParams })
     }, 50)
   }, [localParams, asset.id, updateAsset])
 
@@ -218,7 +217,7 @@ export function UjiControls({ asset, disabled }: UjiControlsProps) {
               />
               <Slider
                 label="Reveal Speed (-1=off)"
-                value={params.revealSpeed}
+                value={params.revealSpeed ?? -1}
                 min={-1}
                 max={500}
                 step={1}
@@ -263,7 +262,7 @@ export function UjiControls({ asset, disabled }: UjiControlsProps) {
             />
             <Slider
               label="Until (-1=off)"
-              value={params.rotationUntil}
+              value={params.rotationUntil ?? -1}
               min={-1}
               max={2000}
               step={1}
@@ -504,6 +503,16 @@ export function UjiControls({ asset, disabled }: UjiControlsProps) {
 
             <ControlGroup label="Effects">
               <Slider
+                label="Background Opacity"
+                value={params.bgOpacity ?? 1}
+                min={0}
+                max={1}
+                step={0.01}
+                format={(v) => `${(v * 100).toFixed(0)}%`}
+                onChange={(v) => updateParams({ bgOpacity: v })}
+                disabled={disabled}
+              />
+              <Slider
                 label="Shadow Blur"
                 value={params.shadowBlur ?? 0}
                 min={-10}
@@ -644,6 +653,45 @@ export function UjiControls({ asset, disabled }: UjiControlsProps) {
                   onChange={(v) => updateParams({ itersPerFrame: v })}
                   disabled={disabled}
                 />
+
+                <ControlGroup label="Loop Settings">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-gray-400">Mode</span>
+                      <select
+                        value={params.loopMode ?? 'cycle'}
+                        onChange={(e) => updateParams({ loopMode: e.target.value as any })}
+                        disabled={disabled}
+                        className="px-2 py-1 text-[10px] bg-gray-800 border border-gray-700 rounded text-gray-300 focus:border-[#d4f542] focus:outline-none"
+                      >
+                        <option value="cycle">Cycle (Reset+Clear)</option>
+                        <option value="once">Once (Freeze)</option>
+                        <option value="infinite">Infinite (⚠️ Fills Screen)</option>
+                        <option value="pingpong">Ping-Pong</option>
+                      </select>
+                    </div>
+
+                    <Slider
+                      label="Loop Duration (-1=use iterations)"
+                      value={params.loopDuration ?? -1}
+                      min={-1}
+                      max={2000}
+                      step={10}
+                      format={(v) => v < 0 ? 'Auto' : v.toString()}
+                      onChange={(v) => updateParams({ loopDuration: v })}
+                      disabled={disabled}
+                    />
+
+                    <div className="flex items-center justify-between py-1">
+                      <span className="text-[10px] text-gray-400">Clear on Loop</span>
+                      <Toggle
+                        checked={params.clearOnLoop !== false}
+                        onChange={(v) => updateParams({ clearOnLoop: v })}
+                        disabled={disabled || params.loopMode === 'infinite'}
+                      />
+                    </div>
+                  </div>
+                </ControlGroup>
 
                 <ControlGroup label="Audio Modulation">
                   <div className="flex items-center justify-between py-1">

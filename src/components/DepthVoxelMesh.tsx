@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Asset } from '../stores/assetStore'
 import { assetTextureManager } from '../lib/assetTextureManager'
-import { depthTextureManager, DEFAULT_VOXEL_CONFIG } from '../lib/depthTextureManager'
+import { depthTextureManager } from '../lib/depthTextureManager'
 import { audioEngine } from '../lib/audioEngine'
 
 interface DepthVoxelMeshProps {
@@ -21,51 +21,34 @@ export function DepthVoxelMesh({
 }: DepthVoxelMeshProps) {
   const pointsRef = useRef<THREE.Points>(null)
   const [isLoaded, setIsLoaded] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   
-  const config = asset.depthConfig ?? DEFAULT_VOXEL_CONFIG
-  
-  // Get or create voxel mesh from depthTextureManager
-  const voxelMesh = useMemo(() => {
-    if (!asset.depthSourceId) return null
-    
-    // Try to get existing mesh
-    let mesh = depthTextureManager.getVoxelMesh(asset.id)
-    if (mesh) return mesh
-    
-    // Need to load it first - this happens asynchronously
-    return null
-  }, [asset.id, asset.depthSourceId])
-
   // Load depth texture on mount
   useEffect(() => {
-    if (!asset.depthSourceId || isLoaded) return
+    const sourceId = asset.depthSourceId
+    if (!sourceId || isLoaded) return
     
     let isMounted = true
     
     const loadDepth = async () => {
       try {
         // First ensure source is loaded
-        const sourceVideo = assetTextureManager.getMediaEl(asset.depthSourceId)
+        const sourceVideo = assetTextureManager.getMediaEl(sourceId)
         if (!sourceVideo) {
-          // Source not loaded yet - try to load source asset
-          throw new Error('Source video not available')
+          return
         }
         
         // Load depth texture
         await depthTextureManager.loadDepthTexture(
           asset.id,
           sourceVideo,
-          config
+          asset.depthConfig
         )
         
         if (isMounted) {
           setIsLoaded(true)
         }
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : 'Failed to load depth')
-        }
+      } catch (_err) {
+        // Silently handle errors
       }
     }
     
@@ -74,7 +57,7 @@ export function DepthVoxelMesh({
     return () => {
       isMounted = false
     }
-  }, [asset.id, asset.depthSourceId, config, isLoaded])
+  }, [asset.id, asset.depthSourceId, asset.depthConfig, isLoaded])
 
   // Update mesh position and rotation
   useFrame(() => {
@@ -89,7 +72,7 @@ export function DepthVoxelMesh({
     mesh.scale.setScalar(scale * 0.5) // Scale down a bit
     
     // Auto rotation
-    if (autoRotate && config.enabled !== false) {
+    if (autoRotate) {
       mesh.rotation.y += 0.005
     }
     
@@ -105,7 +88,7 @@ export function DepthVoxelMesh({
 
   // Return the voxel mesh as a primitive
   const mesh = depthTextureManager.getVoxelMesh(asset.id)
-  if (!mesh || !config.enabled) return null
+  if (!mesh || asset.depthConfig === undefined) return null
   
   return (
     <primitive 
@@ -128,12 +111,13 @@ export function DepthTextureMesh({ asset, surfaceCorners }: DepthTextureMeshProp
   const [texture, setTexture] = useState<THREE.Texture | null>(null)
   
   useEffect(() => {
-    if (!asset.depthSourceId) return
+    const sourceId = asset.depthSourceId
+    if (!sourceId) return
     
     let isMounted = true
     
     const loadTexture = async () => {
-      const sourceVideo = assetTextureManager.getMediaEl(asset.depthSourceId)
+      const sourceVideo = assetTextureManager.getMediaEl(sourceId)
       if (!sourceVideo) return
       
       const tex = await depthTextureManager.loadDepthTexture(
@@ -190,7 +174,10 @@ export function DepthTextureMesh({ asset, surfaceCorners }: DepthTextureMeshProp
     return geo
   }, [surfaceCorners])
 
-  if (!geometry || !texture || asset.depthConfig?.enabled === false) return null
+  // Safely check if depth config exists and is enabled
+  const isEnabled = asset.depthConfig !== undefined;
+  
+  if (!geometry || !texture || !isEnabled) return null
   
   return (
     <mesh ref={meshRef} geometry={geometry}>
