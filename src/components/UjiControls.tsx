@@ -13,7 +13,7 @@ export function UjiControls({ asset, disabled }: UjiControlsProps) {
   const { updateAsset } = useAssetStore()
   const [localParams, setLocalParams] = useState<UjiParams>(asset.ujiParams ?? DEFAULT_UJI_PARAMS)
   const [activeTab, setActiveTab] = useState<'geometry' | 'rotation' | 'motion' | 'appearance' | 'animation'>('geometry')
-  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const updateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Sync with asset changes
   useEffect(() => {

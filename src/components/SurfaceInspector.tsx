@@ -15,6 +15,14 @@ export function SurfaceInspector({ surface, onEditShader, onClose }: SurfaceInsp
   const { assets } = useAssetStore()
   const [activeTab, setActiveTab] = useState<'color' | 'transform' | 'fx' | 'mask' | 'corners'>('color')
   const [ujiExpanded, setUjiExpanded] = useState(true)
+  const [sectionsExpanded, setSectionsExpanded] = useState({
+    basic: true,
+    color: true,
+    transform: true,
+    fx: true,
+    mask: true,
+    corners: true,
+  })
 
   // Get the asset associated with this surface (if any)
   const asset = useMemo(() => 
@@ -89,9 +97,13 @@ export function SurfaceInspector({ surface, onEditShader, onClose }: SurfaceInsp
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-5">
-        {/* Opacity & Blend - always visible */}
-        <div className="space-y-3 pb-4 border-b border-gray-700/60">
+      <div className="flex-1 overflow-y-auto p-4 space-y-1">
+        {/* Basic Settings */}
+        <CollapsibleSection
+          title="Basic"
+          expanded={sectionsExpanded.basic}
+          onToggle={() => setSectionsExpanded(s => ({ ...s, basic: !s.basic }))}
+        >
           <Slider label="Opacity" value={surface.opacity ?? 0.95} min={0} max={1}
             displayValue={`${Math.round((surface.opacity ?? 0.95) * 100)}%`}
             onChange={(v) => update({ opacity: v })} disabled={surface.locked} />
@@ -101,8 +113,6 @@ export function SurfaceInspector({ surface, onEditShader, onClose }: SurfaceInsp
           <Slider label="Contrast" value={surface.contrast ?? 0} min={-0.5} max={0.5}
             displayValue={(surface.contrast ?? 0) >= 0 ? `+${(surface.contrast ?? 0).toFixed(2)}` : (surface.contrast ?? 0).toFixed(2)}
             onChange={(v) => update({ contrast: v })} disabled={surface.locked} />
-          
-          {/* Blend mode */}
           <div className="space-y-2 pt-2">
             <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wide">Blend Mode</span>
             <div className="grid grid-cols-4 gap-1 p-0.5 bg-gray-800/60 rounded-lg">
@@ -118,23 +128,31 @@ export function SurfaceInspector({ surface, onEditShader, onClose }: SurfaceInsp
               ))}
             </div>
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* Tab content */}
         {activeTab === 'color' && (
-          <div className="space-y-4">
-            <h3 className="text-xs font-semibold text-gray-400 uppercase">Color Adjustments</h3>
-            <Slider label="Hue Shift" value={hue} min={-180} max={180} step={1}
-              displayValue={`${hue > 0 ? '+' : ''}${hue}°`}
-              onChange={(v) => update({ hue: v })} disabled={surface.locked} />
-            <Slider label="Saturation" value={saturation} min={0} max={2} step={0.01}
-              displayValue={saturation.toFixed(2)}
-              onChange={(v) => update({ saturation: v })} disabled={surface.locked} />
-            <Toggle label="Invert Colors" value={invert} onChange={(v) => update({ invert: v })} disabled={surface.locked} />
+          <>
+            <CollapsibleSection
+              title="Color Adjustments"
+              expanded={sectionsExpanded.color}
+              onToggle={() => setSectionsExpanded(s => ({ ...s, color: !s.color }))}
+            >
+              <Slider label="Hue Shift" value={hue} min={-180} max={180} step={1}
+                displayValue={`${hue > 0 ? '+' : ''}${hue}°`}
+                onChange={(v) => update({ hue: v })} disabled={surface.locked} />
+              <Slider label="Saturation" value={saturation} min={0} max={2} step={0.01}
+                displayValue={saturation.toFixed(2)}
+                onChange={(v) => update({ saturation: v })} disabled={surface.locked} />
+              <Toggle label="Invert Colors" value={invert} onChange={(v) => update({ invert: v })} disabled={surface.locked} />
+            </CollapsibleSection>
 
-            {/* Chroma Key */}
-            <div className="pt-4 border-t border-gray-700/60">
-              <Toggle label="Chroma Key" value={surface.chromaKey ?? false} onChange={(v) => update({ chromaKey: v })} disabled={surface.locked} />
+            <CollapsibleSection
+              title="Chroma Key"
+              expanded={sectionsExpanded.color}
+              onToggle={() => setSectionsExpanded(s => ({ ...s, color: !s.color }))}
+            >
+              <Toggle label="Enable Chroma Key" value={surface.chromaKey ?? false} onChange={(v) => update({ chromaKey: v })} disabled={surface.locked} />
               {surface.chromaKey && (
                 <div className="mt-3 space-y-3">
                   <div className="flex items-center gap-3">
@@ -160,8 +178,8 @@ export function SurfaceInspector({ surface, onEditShader, onClose }: SurfaceInsp
                     onChange={(v) => update({ chromaSoftness: v })} disabled={surface.locked} />
                 </div>
               )}
-            </div>
-          </div>
+            </CollapsibleSection>
+          </>
         )}
 
         {activeTab === 'transform' && (
@@ -345,6 +363,38 @@ export function SurfaceInspector({ surface, onEditShader, onClose }: SurfaceInsp
 }
 
 // ─── Shared components ─────────────────────────────────────────────────────────
+
+interface CollapsibleSectionProps {
+  title: string
+  expanded: boolean
+  onToggle: () => void
+  children: React.ReactNode
+  color?: 'default' | 'green'
+}
+
+function CollapsibleSection({ title, expanded, onToggle, children, color = 'default' }: CollapsibleSectionProps) {
+  return (
+    <div className="border-b border-gray-700/60 last:border-b-0">
+      <button
+        onClick={onToggle}
+        className={`w-full flex items-center justify-between py-2.5 text-xs font-semibold uppercase hover:bg-gray-800/50 rounded px-2 -mx-2 transition-colors ${
+          color === 'green' ? 'text-[#d4f542]' : 'text-gray-400'
+        }`}
+      >
+        <span>{title}</span>
+        <svg
+          className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {expanded && <div className="pb-4 space-y-3">{children}</div>}
+    </div>
+  )
+}
 
 interface SliderProps {
   label: string
